@@ -20,6 +20,7 @@ m_staticText.SetWindowText((LPCTSTR)txtSerialNumber);
 #include "SerialCtrlDemo.h"
 #include "SerialCtrlDemoDlg.h"
 #include "TestRoutines.h"
+#include "Definitions.h"
 #include <windows.h>
 #include <iostream>
 #include <sstream>
@@ -29,6 +30,17 @@ m_staticText.SetWindowText((LPCTSTR)txtSerialNumber);
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+
+char strSendMeasureCommand[] = ":MEAS?\r\n";
+
+enum {
+	STANDBY = 0,
+	SEND,
+	RECEIVE
+};
+
+int state = STANDBY;
+int tickCounter = 0;
 
 static TestApp MyTestApp;		
 
@@ -41,7 +53,6 @@ void CALLBACK TimerProc(void* lpParametar,
 {
 	// This is used only to call QueueTimerHandler
 	// Typically, this function is static member of CTimersDlg
-
 	CSerialCtrlDemoDlg* obj = (CSerialCtrlDemoDlg*)lpParametar;
 	obj->timerHandler();
 	
@@ -199,27 +210,34 @@ HCURSOR CSerialCtrlDemoDlg::OnQueryDragIcon()
 
 void CSerialCtrlDemoDlg::OnBnClickedRunButton()
 {
-	BOOL tryAgain = true;
-	do {
-		if (MyTestApp.flgMainPortOpen==false || tryAgain) 
-			MyTestApp.openTestSerialPort();		
-		if (MyTestApp.flgMainPortOpen) {
-			tryAgain = false;
-			if (m_timerHandle == NULL) {
-				DWORD elapsedTime = 1000;
-				// Create new timer
-				BOOL success = ::CreateTimerQueueTimer(
-					&m_timerHandle,
-					NULL,
-					TimerProc,
-					this,
-					0,
-					elapsedTime,
-					WT_EXECUTEINTIMERTHREAD);
-			}
-		}
-		else tryAgain = MyTestApp.DisplayMessageBox((LPCTSTR)"Serial port not open", (LPCTSTR)"Check USB connection and try again?", 2);		
-	} while (tryAgain);
+	StartTimer();
+	/*
+	if (m_timerHandle == NULL) {
+		DWORD elapsedTime = 1000;		
+		BOOL success = ::CreateTimerQueueTimer(  // Create new timer
+		&m_timerHandle,
+		NULL,
+		TimerProc,
+		this,
+		0,
+		elapsedTime,
+		WT_EXECUTEINTIMERTHREAD);
+	}
+	*/
+}
+
+void CSerialCtrlDemoDlg::StartTimer() {
+	if (m_timerHandle == NULL) {
+		DWORD elapsedTime = 1000;
+		BOOL success = ::CreateTimerQueueTimer(  // Create new timer
+			&m_timerHandle,
+			NULL,
+			TimerProc,
+			this,
+			0,
+			elapsedTime,
+			WT_EXECUTEINTIMERTHREAD);
+	}
 }
 
 
@@ -244,24 +262,23 @@ void CSerialCtrlDemoDlg::OnLbnSelchangeList1()
 // START: INITIALIZE HP34401
 void CSerialCtrlDemoDlg::OnBnClickedButton1()
 {		
-	MyTestApp.openTestSerialPort(); // $$$$
-	// MyTestApp.DisplayResourceNAMessageBox();		
-	if (MyTestApp.InitializeHP34401())
-	{		
-		if (m_timerHandle == NULL) {
-			MyTestApp.msDelay(2000);
-
-			DWORD elapsedTime = 1000;
-			// Create new timer
-			BOOL success = ::CreateTimerQueueTimer(
-				&m_timerHandle,
-				NULL,
-				TimerProc,
-				this,
-				0,
-				elapsedTime,
-				WT_EXECUTEINTIMERTHREAD);
-		}		
+	if (MyTestApp.openTestSerialPort()){
+		m_staticInfo.SetWindowText("Initializing meter. Please wait...");
+		if (MyTestApp.InitializeHP34401())
+		{
+			if (m_timerHandle == NULL) {
+				// MyTestApp.msDelay(2000);
+				DWORD elapsedTime = 1000;				
+				BOOL success = ::CreateTimerQueueTimer(  // Create new timer
+					&m_timerHandle,
+					NULL,
+					TimerProc,
+					this,
+					0,
+					elapsedTime,
+					WT_EXECUTEINTIMERTHREAD);
+			}
+		}
 	}
 }
 
@@ -274,8 +291,15 @@ void CSerialCtrlDemoDlg::OnBnClickedButton2()
 }
 
 void CSerialCtrlDemoDlg::timerHandler() {
-	
-	MyTestApp.sendReceiveSerial(&m_staticInfo, TRUE);	
+	char inPacket[BUFFERSIZE];
+	// MyTestApp.sendReceiveSerial(&m_staticInfo, TRUE);	
+	if (!MyTestApp.sendReceiveSerial(1, strSendMeasureCommand, inPacket)) {
+		DeleteTimerQueueTimer(NULL, m_timerHandle, NULL);  // destroy the timer
+		m_timerHandle = NULL;
+		if (MyTestApp.openTestSerialPort())
+			StartTimer();
+	}
+	m_staticInfo.SetWindowText(inPacket);
 }
 
 void CSerialCtrlDemoDlg::OnBnClickedMfcmenubutton1()

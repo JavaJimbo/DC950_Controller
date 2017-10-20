@@ -8,20 +8,23 @@
 
 class TestApp : public CDialog
 {
-public:		
-	BOOL sendReceiveSerial(CStatic *ptrInfo, BOOL getReply);
+public:			
+	BOOL TestApp::sendReceiveSerial(int targetDevice, char *outPacket, char *inPacket);
 	void msDelay(int milliseconds);
 	void ConfigureFont(int fontHeight, int fontWidth);
 	BOOL InitializeHP34401();	
 	BOOL openTestSerialPort();
 	BOOL closeTestSerialPort();	
 	BOOL DisplayMessageBox(LPCTSTR strTopLine, LPCTSTR strBottomLine, int boxType);
-	BOOL isSystemOK();
+	BOOL isSystemOK();	
+	BOOL ReadSerialPort(int targetDevice, char *ptrPacket);
+	BOOL WriteSerialPort(int targetDevice, char *ptrPacket);
 
 	BOOL flgMainPortOpen;
 	BOOL flgHPmeterInitialized;
 	BOOL flgIniFileOpen;
-	BOOL flgSerialPortError;
+	BOOL flgReadWriteError;
+	int	 systemError;
 
 	TestApp(CWnd* pParent = NULL);	// standard constructor
 	~TestApp();

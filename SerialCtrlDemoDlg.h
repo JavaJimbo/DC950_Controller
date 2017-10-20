@@ -48,6 +48,7 @@ public:
 	//BOOL bRunMode;
 	HANDLE m_timerHandle = NULL;
 	void timerHandler();
+	void StartTimer();
 public:
 	afx_msg void OnBnClickedRunButton();	
 	afx_msg void OnStnClickedStaticInfo();

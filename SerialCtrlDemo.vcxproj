@@ -118,6 +118,7 @@
     <ClCompile Include="TestRoutines.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Definitions.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SerialCtrlDemo.h" />
     <ClInclude Include="SerialCtrlDemoDlg.h" />

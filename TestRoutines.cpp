@@ -13,10 +13,7 @@
 #include "SerialCtrlDemo.h"
 #include <string.h>
 #include "TestRoutines.h"
-
-#define FONTHEIGHT 26
-#define FONTWIDTH 10
-#define BUFFERSIZE 128
+#include "Definitions.h"
 
 const char *testPortName = "COM8";
 
@@ -29,12 +26,7 @@ CFont font;
 
 int arg = 123;
 
-enum {
-	STANDBY = 0,
-	SEND,
-	RECEIVE
-};
-int state = STANDBY;
+
 
 	DUT::DUT() {
 		groundBondTest = hiPotTest = groundBondTest = potAdjustTest = remoteTest = ACpowerTest = ActuiatorTest = SpectrometerTest = 0;
@@ -42,16 +34,16 @@ int state = STANDBY;
 	}
 
 	BOOL TestApp::isSystemOK() {
-		if (!flgSerialPortError && flgIniFileOpen)
+		if (!flgReadWriteError && flgIniFileOpen)
 			return(TRUE);
 		else return (FALSE);
 	}
 
 	TestApp::TestApp(CWnd* pParent) {
-		flgSerialPortError = FALSE;
+		flgReadWriteError = FALSE;
 		flgIniFileOpen = TRUE;
-		flgHPmeterInitialized = FALSE;
-		flgMainPortOpen = FALSE;
+		flgHPmeterInitialized = FALSE;		
+		systemError = 0;
 
 		TCHAR* pFileName = _T("INIfile.txt");
 		try
@@ -113,18 +105,18 @@ int state = STANDBY;
 		}
 
 		// Set a timer to call the timer routine in milliseconds
-		if (!CreateTimerQueueTimer(&hTimer, hTimerQueue, (WAITORTIMERCALLBACK)TimerRoutine, &arg, milliseconds, 0, 0))
-		{
+		//if (!CreateTimerQueueTimer(&hTimer, hTimerQueue, (WAITORTIMERCALLBACK)TimerRoutine, &arg, milliseconds, 0, 0))
+		//{
 			//TRACE("\nCreateTimerQueueTimer failed \n");
-		}
-
-		// TODO: Do other useful work here 
-		// TRACE("\nCall timer routine in milliseconds...\n");
+		//}
+		CreateTimerQueueTimer(&hTimer, hTimerQueue, (WAITORTIMERCALLBACK)TimerRoutine, &arg, milliseconds, 0, 0);
 
 		// Wait for the timer-queue thread to complete using an event 
 		// object. The thread will signal the event at that time.
-		if (WaitForSingleObject(gDoneEvent, INFINITE) != WAIT_OBJECT_0);
+		// if (WaitForSingleObject(gDoneEvent, INFINITE) != WAIT_OBJECT_0);
 		//TRACE("\nWaitForSingleObject failed \n");
+
+		WaitForSingleObject(gDoneEvent, INFINITE);
 
 		CloseHandle(gDoneEvent);
 
@@ -158,23 +150,27 @@ int state = STANDBY;
 		DCB m_testPortConfig;
 		if (!flgMainPortOpen) {
 
-			m_testPortHandle = CreateFile(testPortName,  // Specify port device: default "COM1"		
-				GENERIC_READ | GENERIC_WRITE,       // Specify mode that open device.
-				0,                                  // the devide isn't shared.
-				NULL,                               // the object gets a default security.
-				OPEN_EXISTING,                      // Specify which action to take on file. 
-				0,                                  // default.
-				NULL);                              // default.
-
 													// Get current configuration of serial communication port.
+													//if (GetCommState(m_NewPortHandle, &m_testPortConfig) == 0)			 
+			int tryAgain;
+			do {
+				m_testPortHandle = CreateFile(testPortName,  // Specify port device: default "COM1"		
+					GENERIC_READ | GENERIC_WRITE,       // Specify mode that open device.
+					0,                                  // the devide isn't shared.
+					NULL,                               // the object gets a default security.
+					OPEN_EXISTING,                      // Specify which action to take on file. 
+					0,                                  // default.
+					NULL);                              // default.
 
-													//if (GetCommState(m_NewPortHandle, &m_testPortConfig) == 0)
-			if (GetCommState(m_testPortHandle, &m_testPortConfig) == 0)
-			{
+				if (GetCommState(m_testPortHandle, &m_testPortConfig) == 0) {
+					flgMainPortOpen = FALSE;
+					tryAgain = DisplayMessageBox("Serial Port Error", "Check USB connections \r\nTry again?", 2);
+				}
+				else flgMainPortOpen = TRUE;
+				msDelay(100);
+			} while (!flgMainPortOpen && tryAgain);
 
-				AfxMessageBox("Get configuration port has problem.");
-				return FALSE;
-			}
+			if (!flgMainPortOpen) return (FALSE);
 
 			DCB dcb;
 			dcb.BaudRate = CBR_9600;			// $$$$ Fix baud rate at 9600, 1 stop bit, no parity, 8 data bits
@@ -192,7 +188,8 @@ int state = STANDBY;
 														 // if (SetCommState(m_NewPortHandle, &m_testPortConfig) == 0)
 			if (SetCommState(m_testPortHandle, &m_testPortConfig) == 0)
 			{
-				AfxMessageBox("Set configuration port has problem.");
+				flgMainPortOpen = FALSE;
+				AfxMessageBox("PROGRAM ERROR: Set configuration port has problem.");
 				return FALSE;
 			}
 
@@ -207,7 +204,7 @@ int state = STANDBY;
 			SetCommTimeouts(m_testPortHandle, &comTimeOut);		// set the time-out parameter into device control.
 
 															//m_NewPortStatus = TRUE;
-			flgMainPortOpen = TRUE;
+			
 			return TRUE;
 		}
 		return TRUE;  // Return true if port is already open
@@ -226,63 +223,6 @@ int state = STANDBY;
 		return(TRUE);
 	}
 
-#define MAXTRIES 5
-	BOOL TestApp::sendReceiveSerial(CStatic *ptrInfo, BOOL getReply) {
-		char outputData[BUFFERSIZE] = "\rRead meter voltage\r";
-		const char strSendMeasureCommand[] = ":MEAS?\r\n";
-		char inBytes[BUFFERSIZE];
-		int length;
-		DWORD numBytesWritten = 0;
-		DWORD numBytesRead = 0;
-		static BOOL startFlag = TRUE;
-		static int timeSeconds = 0;
-		static int trial = 0;
-		char inPacket[BUFFERSIZE] = { '\0' };
-
-		length = strlen(strSendMeasureCommand);
-		
-		if (!openTestSerialPort()) return (FALSE);
-		if (!InitializeHP34401()) return (FALSE);		
-
-		// SEND measure command		
-		if (!WriteFile(m_testPortHandle, strSendMeasureCommand, length, &numBytesWritten, NULL)) {
-			TRACE("\nERROR: PORT WRITE ERROR");
-			state = STANDBY;
-			closeTestSerialPort();
-			return(FALSE);
-		}
-
-		if (!getReply) return(TRUE);
-
-		// Wait for response:
-		trial = 0;
-		inPacket[0] = '\0';
-		do {
-			trial++;
-			msDelay(100);
-			if (ReadFile(m_testPortHandle, inBytes, BUFFERSIZE, &numBytesRead, NULL)) {
-				if (numBytesRead > 0 && numBytesRead < BUFFERSIZE) {
-					inBytes[numBytesRead] = '\0';
-					//sprintf_s(strTrial, "\r%d bytes received: %s", numBytesRead, inBytes);
-					//RACE(strTrial);
-					strcat_s(inPacket, inBytes);
-					if (strchr(inBytes, '\r')) {
-						ptrInfo->SetWindowText(inPacket);
-						break;
-					}
-				}
-			}
-		} while (trial < MAXTRIES);
-
-		if (trial >= MAXTRIES) {
-			state = STANDBY;
-			closeTestSerialPort();
-			flgHPmeterInitialized = FALSE;
-			// ptrInfo->SetWindowText("TIMEOUT");
-			return (FALSE);
-		}
-		else return(TRUE);
-	}
 
 
 	BOOL TestApp::InitializeHP34401() {
@@ -295,25 +235,22 @@ int state = STANDBY;
 			
 		// 1) Send RESET command to HP34401:
 		length = strlen(strReset);
-		if (!WriteFile(m_testPortHandle, strReset, length, &numBytesWritten, NULL)) {
-			TRACE("\nERROR: PORT WRITE ERROR");
-			state = STANDBY;
+		if (!WriteFile(m_testPortHandle, strReset, length, &numBytesWritten, NULL)) {						
 			closeTestSerialPort();
 			return(FALSE);
 		}
 
-		msDelay(1000);
+		msDelay(500);
 
 		// 2) Enable RS232 remote control : ":SYST:REM\r\n"
 		length = strlen(strEnableRemote);
-		if (!WriteFile(m_testPortHandle, strEnableRemote, length, &numBytesWritten, NULL)) {
-			TRACE("\nERROR: PORT WRITE ERROR");
-			state = STANDBY;
+		if (!WriteFile(m_testPortHandle, strEnableRemote, length, &numBytesWritten, NULL)) {						
 			closeTestSerialPort();
 			return(FALSE);
 		}
-		flgHPmeterInitialized = TRUE;
 
+		flgHPmeterInitialized = TRUE;
+				
 		return(TRUE);
 	}
 
@@ -341,66 +278,100 @@ int state = STANDBY;
 		}
 
 		return tryAgain;
-	}
-
-	#define MAXRETRIES 5
-
-	/*
-	BOOL WriteSerialPort (char *ptrPacket) {
+	}	
+	 
+	BOOL TestApp::WriteSerialPort (int targetDevice, char *ptrPacket){
 		int length;
-		int retries = 0;
-		DWORD numBytesWritten = 0;		
+		int trial = 0;
+		int numBytesWritten = 0;		
 
-		if (ptrPacket == NULL) return (FALSE);
-		length = strlen(ptrPacket);
-		if (length < MAXBUFFER) {
-			do {
-				if (WriteFile(m_testPortHandle, ptrPacket, length, &numBytesWritten, NULL)) break;
-				msDelay(1000);
-			} while (++retries < MAXRETRIES && numBytesWritten == 0);
+		if (ptrPacket == NULL) {
+			systemError = 1;
+			return (FALSE);
 		}
-		else return (FALSE);
 
-		return (TRUE);
-	}
-
-	BOOL ReadSerialPort(char *ptrPacket) {
-		int length;
-		int retries = 0;
-		DWORD numBytesWritten = 0;
-
-		if (ptrPacket == NULL) return (FALSE);
-		length = strlen(ptrPacket);
-		if (length < MAXBUFFER) {
-			do {
-				if (WriteFile(m_testPortHandle, ptrPacket, length, &numBytesWritten, NULL)) break;
-				msDelay(1000);
-			} while (++retries < MAXRETRIES && numBytesWritten == 0);
-		}
-		else return (FALSE);
-
-		if (retries < MAXRETRIES) return (TRUE);
-		else return (FALSE);
-	}
-
-	BOOL ReadSerialPort(char *ptrPacket) {
-		int totalBytesRead = 0, numBytesRead = 0;
-		int retries = 0;
+		length = strlen(ptrPacket);					
+		if (length >= BUFFERSIZE) {
+			systemError = 2;
+			return (FALSE);
+		}		
 
 		do {
+			trial++;
+			if (WriteFile(m_testPortHandle, ptrPacket, length, (LPDWORD) &numBytesWritten, NULL)) break;
+			msDelay(100);
+		} while (trial < MAXTRIES && numBytesWritten == 0);
+
+		if (trial >= MAXTRIES) {
+			closeTestSerialPort();
+			flgMainPortOpen = FALSE;
+			flgReadWriteError = TRUE;
+			if (targetDevice == MULTIMETER)	flgHPmeterInitialized = FALSE;
+			return (FALSE);
+		}
+		else {
+			flgReadWriteError = FALSE;
+			return (TRUE);
+		}
+	}
+	
+		
+	BOOL TestApp::ReadSerialPort(int targetDevice, char *ptrPacket) {
+		int totalBytesRead = 0;
+		DWORD numBytesRead;
+		char inBytes[BUFFERSIZE];
+		ptrPacket[0] = '\0';
+		int trial = 0;
+
+		if (ptrPacket == NULL) {
+			systemError = 1;
+			return (FALSE);
+		}
+
+		// Wait for response:
+		trial = 0;
+		ptrPacket[0] = '\0';
+		do {
+			trial++;
+			msDelay(100);
 			if (ReadFile(m_testPortHandle, inBytes, BUFFERSIZE, &numBytesRead, NULL)) {
 				if (numBytesRead > 0 && numBytesRead < BUFFERSIZE) {
 					inBytes[numBytesRead] = '\0';
-					strcat_s(inPacket, inBytes);
-					if (strchr(inBytes, '\r')) {
-						ptrInfo->SetWindowText(inPacket);
-						break;
-					}
+					strcat(ptrPacket, inBytes);
+					if (strchr(inBytes, '\r')) break;					
 				}
 			}
-		} while (++retries < MAXRETRIES);
+		} while (trial < MAXTRIES);
 
-		if (retries < MAXRETRIES) return (TRUE);
-		else return (FALSE);
+		if (trial >= MAXTRIES) {
+			closeTestSerialPort();
+			flgMainPortOpen = FALSE;
+			flgReadWriteError = TRUE;
+			if (targetDevice == MULTIMETER)	flgHPmeterInitialized = FALSE;			
+			return (FALSE);
+		}
+		else {
+			flgReadWriteError = FALSE;
+			return (TRUE);
+		}
 	}
-	*/
+	
+
+	BOOL TestApp::sendReceiveSerial(int targetDevice, char *outPacket, char *inPacket) {		
+
+		if (outPacket == NULL) {
+			systemError = 1;
+			return (FALSE);
+		}						
+
+		inPacket[0] = '\0';		
+		if (targetDevice == MULTIMETER && !InitializeHP34401()) return (FALSE);		
+		if (!WriteSerialPort(0, outPacket)) return (FALSE);
+
+		if (inPacket == NULL) 
+			return(TRUE);		
+		if (!ReadSerialPort(0, inPacket)) 
+			return (FALSE);
+		
+		return (TRUE);
+	}

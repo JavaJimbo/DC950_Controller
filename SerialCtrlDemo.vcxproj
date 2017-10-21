@@ -109,6 +109,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CRC Check.cpp" />
     <ClCompile Include="SerialCtrlDemo.cpp" />
     <ClCompile Include="SerialCtrlDemoDlg.cpp" />
     <ClCompile Include="stdafx.cpp">

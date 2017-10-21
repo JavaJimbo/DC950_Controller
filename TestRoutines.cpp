@@ -6,6 +6,8 @@
  *  2) Enable RS232 remote control: ":SYST:REM\r\n"
  *  3) Send measurement command:	":MEAS?\r\n"
  *	10-15-17: Added pop up message boxes for error handling 
+ *	10-20-71: Created ReadSerialPort() and WriteSerialPort() and simpified sendReceiveSerial()
+ *  10-21-17: Added CRC
  */
 
 // NOTE: INCUDES MUST BE IN THIS ORDER!!!
@@ -16,17 +18,15 @@
 #include "Definitions.h"
 
 const char *testPortName = "COM8";
-
 HANDLE m_testPortHandle = NULL;
-
 HANDLE gDoneEvent;
 HANDLE hTimer = NULL;
 HANDLE hTimerQueue = NULL;
 CFont font;
-
 int arg = 123;
 
-
+extern UINT16  CRCcalculate(char *ptrPacket, BOOL addCRCtoPacket);
+extern BOOL CRCcheck(char *ptrPacket);
 
 	DUT::DUT() {
 		groundBondTest = hiPotTest = groundBondTest = potAdjustTest = remoteTest = ACpowerTest = ActuiatorTest = SpectrometerTest = 0;
@@ -121,7 +121,7 @@ int arg = 123;
 		CloseHandle(gDoneEvent);
 
 		// Delete all timers in the timer queue.
-		if (!DeleteTimerQueue(hTimerQueue));
+		// if (!DeleteTimerQueue(hTimerQueue));
 		//TRACE("\nDeleteTimerQueue failed \n");
 
 	}
@@ -280,6 +280,8 @@ int arg = 123;
 		return tryAgain;
 	}	
 	 
+	
+	
 	BOOL TestApp::WriteSerialPort (int targetDevice, char *ptrPacket){
 		int length;
 		int trial = 0;
@@ -337,7 +339,7 @@ int arg = 123;
 			if (ReadFile(m_testPortHandle, inBytes, BUFFERSIZE, &numBytesRead, NULL)) {
 				if (numBytesRead > 0 && numBytesRead < BUFFERSIZE) {
 					inBytes[numBytesRead] = '\0';
-					strcat(ptrPacket, inBytes);
+					strcat_s(ptrPacket, BUFFERSIZE, inBytes);
 					if (strchr(inBytes, '\r')) break;					
 				}
 			}
@@ -356,22 +358,24 @@ int arg = 123;
 		}
 	}
 	
-
-	BOOL TestApp::sendReceiveSerial(int targetDevice, char *outPacket, char *inPacket) {		
-
+	// All serial communication goes through a single USB serial port to an interface board.	
+	BOOL TestApp::sendReceiveSerial(int targetDevice, char *outPacket, char *inPacket) {	
 		if (outPacket == NULL) {
 			systemError = 1;
 			return (FALSE);
-		}						
-
-		inPacket[0] = '\0';		
-		if (targetDevice == MULTIMETER && !InitializeHP34401()) return (FALSE);		
-		if (!WriteSerialPort(0, outPacket)) return (FALSE);
-
-		if (inPacket == NULL) 
-			return(TRUE);		
-		if (!ReadSerialPort(0, inPacket)) 
-			return (FALSE);
-		
+		}					
+		CRCcalculate(outPacket, TRUE);
+		if (outPacket == NULL) return (FALSE);		
+		if (!WriteSerialPort(0, outPacket)) return (FALSE);		
+		if (inPacket == NULL) return (FALSE);		
+		inPacket[0] = '\0';
+		if (!ReadSerialPort(0, inPacket)) DisplayMessageBox("SERIAL COMM ERROR", "NO response", 1);		
+		if (!CRCcheck(inPacket)) DisplayMessageBox("CRC ERROR", "!", 1);
+		for (int i = 0; i < BUFFERSIZE; i++) {			
+			if (inPacket[i] == '\r') {
+				inPacket[i] = '\0';
+				break;
+			}
+		}		
 		return (TRUE);
 	}

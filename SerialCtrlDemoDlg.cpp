@@ -4,8 +4,8 @@
 *	1) Append carriage return & linefeed to end of command for HP 34401a
 *	2) Clear receive listbox before sending command
 *	10-15-17: Added pop up message boxes for error handling
-
-
+*	10-20-71: Created ReadSerialPort() and WriteSerialPort() and simpified sendReceiveSerial()
+*	10-21-17: Added CRC
 */
 
 /*
@@ -30,6 +30,7 @@ m_staticText.SetWindowText((LPCTSTR)txtSerialNumber);
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+
 
 char strSendMeasureCommand[] = ":MEAS?\r\n";
 
@@ -125,7 +126,7 @@ END_MESSAGE_MAP()
 
 // CSerialCtrlDemoDlg message handlers
 BOOL CSerialCtrlDemoDlg::OnInitDialog()
-{
+{	
 	CDialog::OnInitDialog();
 
 	// Add "About..." menu item to system menu.
@@ -152,8 +153,6 @@ BOOL CSerialCtrlDemoDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here	
-		
-
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -211,19 +210,6 @@ HCURSOR CSerialCtrlDemoDlg::OnQueryDragIcon()
 void CSerialCtrlDemoDlg::OnBnClickedRunButton()
 {
 	StartTimer();
-	/*
-	if (m_timerHandle == NULL) {
-		DWORD elapsedTime = 1000;		
-		BOOL success = ::CreateTimerQueueTimer(  // Create new timer
-		&m_timerHandle,
-		NULL,
-		TimerProc,
-		this,
-		0,
-		elapsedTime,
-		WT_EXECUTEINTIMERTHREAD);
-	}
-	*/
 }
 
 void CSerialCtrlDemoDlg::StartTimer() {
@@ -263,9 +249,9 @@ void CSerialCtrlDemoDlg::OnLbnSelchangeList1()
 void CSerialCtrlDemoDlg::OnBnClickedButton1()
 {		
 	if (MyTestApp.openTestSerialPort()){
-		m_staticInfo.SetWindowText("Initializing meter. Please wait...");
-		if (MyTestApp.InitializeHP34401())
-		{
+		//m_staticInfo.SetWindowText("Initializing meter. Please wait...");
+		//if (MyTestApp.InitializeHP34401())
+		//{
 			if (m_timerHandle == NULL) {
 				// MyTestApp.msDelay(2000);
 				DWORD elapsedTime = 1000;				
@@ -278,7 +264,7 @@ void CSerialCtrlDemoDlg::OnBnClickedButton1()
 					elapsedTime,
 					WT_EXECUTEINTIMERTHREAD);
 			}
-		}
+		//}
 	}
 }
 
@@ -291,15 +277,21 @@ void CSerialCtrlDemoDlg::OnBnClickedButton2()
 }
 
 void CSerialCtrlDemoDlg::timerHandler() {
+	static int counter = 0;
+	char outPacket[BUFFERSIZE];
 	char inPacket[BUFFERSIZE];
+
+	sprintf_s(outPacket, BUFFERSIZE, "$TEST>And this is my count: %d", counter++);
+
 	// MyTestApp.sendReceiveSerial(&m_staticInfo, TRUE);	
-	if (!MyTestApp.sendReceiveSerial(1, strSendMeasureCommand, inPacket)) {
+	// if (!MyTestApp.sendReceiveSerial(1, strSendMeasureCommand, inPacket)) {
+
+	if (!MyTestApp.sendReceiveSerial(1, outPacket, inPacket)) {
 		DeleteTimerQueueTimer(NULL, m_timerHandle, NULL);  // destroy the timer
 		m_timerHandle = NULL;
-		if (MyTestApp.openTestSerialPort())
-			StartTimer();
+		if (MyTestApp.openTestSerialPort())	StartTimer();
 	}
-	m_staticInfo.SetWindowText(inPacket);
+	else m_staticInfo.SetWindowText(inPacket);
 }
 
 void CSerialCtrlDemoDlg::OnBnClickedMfcmenubutton1()

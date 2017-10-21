@@ -27,6 +27,9 @@
     <ClCompile Include="TestRoutines.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CRC Check.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource.h">

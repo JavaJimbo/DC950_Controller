@@ -6,6 +6,7 @@
 *	10-15-17: Added pop up message boxes for error handling
 *	10-20-71: Created ReadSerialPort() and WriteSerialPort() and simpified sendReceiveSerial()
 *	10-21-17: Added CRC
+*	10-22-17: Cleaned up error handling, use intError. Works well with interface board->meter
 */
 
 /*
@@ -44,6 +45,7 @@ int state = STANDBY;
 int tickCounter = 0;
 
 static TestApp MyTestApp;		
+int intError = 0;
 
 struct {
 	BOOL portError = FALSE;
@@ -153,7 +155,7 @@ BOOL CSerialCtrlDemoDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here	
-
+	intError = NO_ERRORS;
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -250,8 +252,8 @@ void CSerialCtrlDemoDlg::OnBnClickedButton1()
 {		
 	if (MyTestApp.openTestSerialPort()){
 		//m_staticInfo.SetWindowText("Initializing meter. Please wait...");
-		//if (MyTestApp.InitializeHP34401())
-		//{
+		if (MyTestApp.InitializeHP34401()) // $$$$
+		{
 			if (m_timerHandle == NULL) {
 				// MyTestApp.msDelay(2000);
 				DWORD elapsedTime = 1000;				
@@ -264,7 +266,7 @@ void CSerialCtrlDemoDlg::OnBnClickedButton1()
 					elapsedTime,
 					WT_EXECUTEINTIMERTHREAD);
 			}
-		//}
+		}
 	}
 }
 
@@ -276,22 +278,36 @@ void CSerialCtrlDemoDlg::OnBnClickedButton2()
 	m_timerHandle = NULL;	
 }
 
+#define MAX_ERROR 3
 void CSerialCtrlDemoDlg::timerHandler() {
-	static int counter = 0;
-	char outPacket[BUFFERSIZE];
+	static int errorCounter = 0;
+	int dummy = 0;
+	char outPacket[BUFFERSIZE] = "$MEAS?";
 	char inPacket[BUFFERSIZE];
 
-	sprintf_s(outPacket, BUFFERSIZE, "$TEST>And this is my count: %d", counter++);
+	// sprintf_s(outPacket, BUFFERSIZE, "$TEST>And this is my count: %d", counter++);
+	// sprintf_s(outPacket, BUFFERSIZE, "$MEAS?");
 
 	// MyTestApp.sendReceiveSerial(&m_staticInfo, TRUE);	
 	// if (!MyTestApp.sendReceiveSerial(1, strSendMeasureCommand, inPacket)) {
 
 	if (!MyTestApp.sendReceiveSerial(1, outPacket, inPacket)) {
-		DeleteTimerQueueTimer(NULL, m_timerHandle, NULL);  // destroy the timer
-		m_timerHandle = NULL;
-		if (MyTestApp.openTestSerialPort())	StartTimer();
+		errorCounter++;
+		if (errorCounter > MAX_ERROR) {
+			DeleteTimerQueueTimer(NULL, m_timerHandle, NULL);  // destroy the timer
+			m_timerHandle = NULL;
+			MyTestApp.closeTestSerialPort();			 
+			char strError[32];
+			sprintf_s(strError, "Error code: %d", intError);
+			MyTestApp.DisplayMessageBox("COM PORT OR SYSTEM ERROR:", strError, 1);
+		}
 	}
-	else m_staticInfo.SetWindowText(inPacket);
+	else {
+		m_staticInfo.SetWindowText(inPacket);
+		intError = NO_ERRORS;
+		errorCounter = 0;
+	}
+	dummy++;
 }
 
 void CSerialCtrlDemoDlg::OnBnClickedMfcmenubutton1()

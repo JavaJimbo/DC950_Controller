@@ -27,23 +27,24 @@ int arg = 123;
 
 extern UINT16  CRCcalculate(char *ptrPacket, BOOL addCRCtoPacket);
 extern BOOL CRCcheck(char *ptrPacket);
+extern int intError;
 
 	DUT::DUT() {
 		groundBondTest = hiPotTest = groundBondTest = potAdjustTest = remoteTest = ACpowerTest = ActuiatorTest = SpectrometerTest = 0;
 
 	}
 
+	/*
 	BOOL TestApp::isSystemOK() {
 		if (!flgReadWriteError && flgIniFileOpen)
 			return(TRUE);
 		else return (FALSE);
 	}
+	*/
 
-	TestApp::TestApp(CWnd* pParent) {
-		flgReadWriteError = FALSE;
+	TestApp::TestApp(CWnd* pParent) {		
 		flgIniFileOpen = TRUE;
-		flgHPmeterInitialized = FALSE;		
-		systemError = 0;
+		flgHPmeterInitialized = FALSE;				
 
 		TCHAR* pFileName = _T("INIfile.txt");
 		try
@@ -170,7 +171,10 @@ extern BOOL CRCcheck(char *ptrPacket);
 				msDelay(100);
 			} while (!flgMainPortOpen && tryAgain);
 
-			if (!flgMainPortOpen) return (FALSE);
+			if (!flgMainPortOpen) {
+				intError = PORT_ERROR;
+				return (FALSE);
+			}
 
 			DCB dcb;
 			dcb.BaudRate = CBR_9600;			// $$$$ Fix baud rate at 9600, 1 stop bit, no parity, 8 data bits
@@ -189,6 +193,7 @@ extern BOOL CRCcheck(char *ptrPacket);
 			if (SetCommState(m_testPortHandle, &m_testPortConfig) == 0)
 			{
 				flgMainPortOpen = FALSE;
+				intError = PORT_ERROR;
 				AfxMessageBox("PROGRAM ERROR: Set configuration port has problem.");
 				return FALSE;
 			}
@@ -203,8 +208,7 @@ extern BOOL CRCcheck(char *ptrPacket);
 
 			SetCommTimeouts(m_testPortHandle, &comTimeOut);		// set the time-out parameter into device control.
 
-															//m_NewPortStatus = TRUE;
-			
+															//m_NewPortStatus = TRUE;			
 			return TRUE;
 		}
 		return TRUE;  // Return true if port is already open
@@ -213,8 +217,9 @@ extern BOOL CRCcheck(char *ptrPacket);
 	BOOL TestApp::closeTestSerialPort() {
 		if (flgMainPortOpen)               // Port need to be open before.
 		{
-			flgMainPortOpen = FALSE;                 // Update status
-			if (!CloseHandle(m_testPortHandle))  // Call this function to close port.
+			flgMainPortOpen = FALSE;              // Update status
+			flgHPmeterInitialized = FALSE;
+			if (!CloseHandle(m_testPortHandle))   // Call this function to close port.
 			{
 				AfxMessageBox("Port Closing failed.");
 				return FALSE;
@@ -222,38 +227,7 @@ extern BOOL CRCcheck(char *ptrPacket);
 		}
 		return(TRUE);
 	}
-
-
-
-	BOOL TestApp::InitializeHP34401() {
-		int length;
-		DWORD numBytesWritten = 0;
-		const char strReset[] = "*RST\r\n";
-		const char strEnableRemote[] = ":SYST:REM\r\n";
-
-		if (flgHPmeterInitialized) return (TRUE);
-			
-		// 1) Send RESET command to HP34401:
-		length = strlen(strReset);
-		if (!WriteFile(m_testPortHandle, strReset, length, &numBytesWritten, NULL)) {						
-			closeTestSerialPort();
-			return(FALSE);
-		}
-
-		msDelay(500);
-
-		// 2) Enable RS232 remote control : ":SYST:REM\r\n"
-		length = strlen(strEnableRemote);
-		if (!WriteFile(m_testPortHandle, strEnableRemote, length, &numBytesWritten, NULL)) {						
-			closeTestSerialPort();
-			return(FALSE);
-		}
-
-		flgHPmeterInitialized = TRUE;
-				
-		return(TRUE);
-	}
-
+	
 	BOOL TestApp::DisplayMessageBox(LPCTSTR strTopLine, LPCTSTR strBottomLine, int boxType)
 	{
 		BOOL tryAgain = false;
@@ -288,13 +262,13 @@ extern BOOL CRCcheck(char *ptrPacket);
 		int numBytesWritten = 0;		
 
 		if (ptrPacket == NULL) {
-			systemError = 1;
+			intError = SYSTEM_ERROR;
 			return (FALSE);
 		}
 
 		length = strlen(ptrPacket);					
 		if (length >= BUFFERSIZE) {
-			systemError = 2;
+			intError = SYSTEM_ERROR;
 			return (FALSE);
 		}		
 
@@ -305,16 +279,11 @@ extern BOOL CRCcheck(char *ptrPacket);
 		} while (trial < MAXTRIES && numBytesWritten == 0);
 
 		if (trial >= MAXTRIES) {
-			closeTestSerialPort();
-			flgMainPortOpen = FALSE;
-			flgReadWriteError = TRUE;
+			intError = TIMEOUT_ERROR;
 			if (targetDevice == MULTIMETER)	flgHPmeterInitialized = FALSE;
 			return (FALSE);
 		}
-		else {
-			flgReadWriteError = FALSE;
-			return (TRUE);
-		}
+		return (TRUE);		
 	}
 	
 		
@@ -325,8 +294,8 @@ extern BOOL CRCcheck(char *ptrPacket);
 		ptrPacket[0] = '\0';
 		int trial = 0;
 
-		if (ptrPacket == NULL) {
-			systemError = 1;
+		if (ptrPacket == NULL) {			
+			intError = SYSTEM_ERROR;
 			return (FALSE);
 		}
 
@@ -346,36 +315,52 @@ extern BOOL CRCcheck(char *ptrPacket);
 		} while (trial < MAXTRIES);
 
 		if (trial >= MAXTRIES) {
-			closeTestSerialPort();
-			flgMainPortOpen = FALSE;
-			flgReadWriteError = TRUE;
-			if (targetDevice == MULTIMETER)	flgHPmeterInitialized = FALSE;			
+			intError = TIMEOUT_ERROR;
 			return (FALSE);
 		}
-		else {
-			flgReadWriteError = FALSE;
-			return (TRUE);
-		}
+		return (TRUE);		
 	}
 	
 	// All serial communication goes through a single USB serial port to an interface board.	
 	BOOL TestApp::sendReceiveSerial(int targetDevice, char *outPacket, char *inPacket) {	
 		if (outPacket == NULL) {
-			systemError = 1;
+			intError = SYSTEM_ERROR;
 			return (FALSE);
 		}					
+
+		if (!openTestSerialPort()) return (FALSE);
+
 		CRCcalculate(outPacket, TRUE);
 		if (outPacket == NULL) return (FALSE);		
 		if (!WriteSerialPort(0, outPacket)) return (FALSE);		
-		if (inPacket == NULL) return (FALSE);		
+		if (inPacket == NULL) return (TRUE);		
 		inPacket[0] = '\0';
-		if (!ReadSerialPort(0, inPacket)) DisplayMessageBox("SERIAL COMM ERROR", "NO response", 1);		
-		if (!CRCcheck(inPacket)) DisplayMessageBox("CRC ERROR", "!", 1);
-		for (int i = 0; i < BUFFERSIZE; i++) {			
+		if (!ReadSerialPort(0, inPacket)) return (FALSE); 
+		if (!CRCcheck(inPacket)) return (FALSE);
+		for (int i = 0; i < BUFFERSIZE; i++) {
 			if (inPacket[i] == '\r') {
 				inPacket[i] = '\0';
 				break;
 			}
-		}		
-		return (TRUE);
+		}
+		return (TRUE);		
+	}
+
+
+	BOOL TestApp::InitializeHP34401() {				
+		char strReset[BUFFERSIZE] = "$RESET";
+		char strEnableRemote[BUFFERSIZE] = "$REMOTE";
+		
+		if (flgHPmeterInitialized) return (TRUE);
+
+		// 1) Send RESET command to HP34401:
+		if (!sendReceiveSerial(1, strReset, NULL)) return (FALSE);
+
+		msDelay(500);
+
+		// 2) Enable RS232 remote control : ":SYST:REM\r\n"
+		if (!sendReceiveSerial(1, strEnableRemote, NULL)) return (FALSE);		
+
+		flgHPmeterInitialized = TRUE;
+		return(TRUE);
 	}

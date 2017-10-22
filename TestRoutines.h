@@ -6,6 +6,7 @@
 #define PASS 1
 #define FAIL -1
 
+
 class TestApp : public CDialog
 {
 public:			
@@ -16,15 +17,13 @@ public:
 	BOOL openTestSerialPort();
 	BOOL closeTestSerialPort();	
 	BOOL DisplayMessageBox(LPCTSTR strTopLine, LPCTSTR strBottomLine, int boxType);
-	BOOL isSystemOK();	
+	// BOOL isSystemOK();	
 	BOOL ReadSerialPort(int targetDevice, char *ptrPacket);
 	BOOL WriteSerialPort(int targetDevice, char *ptrPacket);
 
 	BOOL flgMainPortOpen;
 	BOOL flgHPmeterInitialized;
-	BOOL flgIniFileOpen;
-	BOOL flgReadWriteError;
-	int	 systemError;
+	BOOL flgIniFileOpen;	
 
 	TestApp(CWnd* pParent = NULL);	// standard constructor
 	~TestApp();

@@ -116,7 +116,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="TestRoutines.cpp" />
+    <ClCompile Include="SerialCom.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Definitions.h" />
@@ -124,7 +124,7 @@
     <ClInclude Include="SerialCtrlDemo.h" />
     <ClInclude Include="SerialCtrlDemoDlg.h" />
     <ClInclude Include="stdafx.h" />
-    <ClInclude Include="TestRoutines.h" />
+    <ClInclude Include="SerialCom.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\SerialCtrlDemo.ico" />

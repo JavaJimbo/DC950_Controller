@@ -2,12 +2,13 @@
 //
 
 #pragma once
-// #include "SerialCtrl.h"
-// #include "afxwin.h"
-// #include "Timer.h"
 
-// #include "mystatic.h"
-// CSerialCtrlDemoDlg dialog
+#ifndef __AFXWIN_H__
+#error "include 'stdafx.h' before including this file for PCH"
+#endif
+
+#include "resource.h"		// main symbols
+
 class CSerialCtrlDemoDlg : public CDialog
 {
 // Construction
@@ -25,37 +26,28 @@ public:
 
 // Implementation
 protected:
-	HICON m_hIcon;
+	// HICON m_hIcon;
 
 	// Generated message map functions
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
-	afx_msg void OnPaint();
-	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
-	CComboBox m_comboSN;
-	CComboBox m_comboBR;
-	CButton m_btnOpen;
-	//CEdit m_editWrite;	 
-	CStatic m_staticInfo;
-	CStatic m_static4Info;
-	CStatic m_staticText;	
+	//CComboBox m_comboSN;
+	//CComboBox m_comboBR;
+	CStatic m_static_Line5;
+	CStatic m_static_Line3;
+	CStatic m_static_Line2;
+	CStatic m_static_Line4;
+	CStatic m_static_Line1;	
+	
 	CEdit m_EditSerialNumber;
 	
-	// int m_timeElapsed;
-	// BOOL bPortOpened;
-	//BOOL bRunMode;
 	HANDLE m_timerHandle = NULL;
 	void timerHandler();
 	void StartTimer();
 public:
-	afx_msg void OnBnClickedRunButton();	
-	afx_msg void OnStnClickedStaticInfo();
-	afx_msg void OnStnClickedStaticNew();
-	afx_msg void OnLbnSelchangeList1();
-	afx_msg void OnBnClickedButton2();
-	afx_msg void OnBnClickedButton1();	
-	
-	afx_msg void OnBnClickedMfcmenubutton1();
+	afx_msg void OnBtnClickedRun();	
+	afx_msg void OnBtnClickedHalt();
+	afx_msg void OnBtnClickedPrevious();	
 };

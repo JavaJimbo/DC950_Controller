@@ -16,129 +16,16 @@
 #include "SerialCtrlDemo.h"
 #include "SerialCtrlDemoDlg.h"
 #include <string.h>
-#include "SerialCom.h"
+#include "TestApp.h"
 #include "Definitions.h"
 
 const char *testPortName = "COM8";
 HANDLE m_testPortHandle = NULL;
-HANDLE gDoneEvent;
-HANDLE hTimer = NULL;
-HANDLE hTimerQueue = NULL;
-CFont font;
-int arg = 123;
 
 extern UINT16  CRCcalculate(char *ptrPacket, BOOL addCRCtoPacket);
 extern BOOL CRCcheck(char *ptrPacket);
 extern int intError;
-
-	DUT::DUT() {
-		groundBondTest = hiPotTest = groundBondTest = potAdjustTest = remoteTest = ACpowerTest = ActuiatorTest = SpectrometerTest = 0;
-
-	}
-
-	TestApp::TestApp(CWnd* pParent) {		
-		flgIniFileOpen = TRUE;
-		flgHPmeterInitialized = FALSE;				
-
-		TCHAR* pFileName = _T("INIfile.txt");
-		try
-		{
-			CStdioFile fileHandle(pFileName, CFile::modeRead | CFile::typeText);
-		}
-		catch (CFileException* pe)
-		{
-			MessageBox("Cannot open file", "FILE ERROR", MB_OK);
-			flgIniFileOpen = FALSE;
-			pe->Delete();
-		}
-	}
-
-	TestApp::~TestApp() {
-		TestApp::closeTestSerialPort();
-	}
-
-
-	VOID CALLBACK TimerRoutine(PVOID lpParam, BOOLEAN TimerOrWaitFired)
-	{
-		if (lpParam == NULL)
-		{
-			//TRACE("\nTimerRoutine lpParam is NULL\n");
-		}
-		else
-		{
-			// lpParam points to the argument; in this case it is an int
-			// TRACE("\nTimer routine called.");
-
-			if (TimerOrWaitFired)
-			{
-				; // TRACE("\nThe wait timed out.\n");
-			}
-			else
-			{
-				; // TRACE("\nThe wait event was signaled.\n");
-			}
-		}
-
-		SetEvent(gDoneEvent);
-	}
-
-
-
-	void TestApp::msDelay(int milliseconds) {
-		// Use an event object to track the TimerRoutine execution
-		gDoneEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-		if (NULL == gDoneEvent)
-		{
-			//TRACE("\nCreateEvent failed \n");
-		}
-
-		// Create the timer queue.
-		hTimerQueue = CreateTimerQueue();
-		if (NULL == hTimerQueue)
-		{
-			//TRACE("\nCreateTimerQueue failed \n");
-		}
-
-		// Set a timer to call the timer routine in milliseconds
-		//if (!CreateTimerQueueTimer(&hTimer, hTimerQueue, (WAITORTIMERCALLBACK)TimerRoutine, &arg, milliseconds, 0, 0))
-		//{
-			//TRACE("\nCreateTimerQueueTimer failed \n");
-		//}
-		CreateTimerQueueTimer(&hTimer, hTimerQueue, (WAITORTIMERCALLBACK)TimerRoutine, &arg, milliseconds, 0, 0);
-
-		// Wait for the timer-queue thread to complete using an event 
-		// object. The thread will signal the event at that time.
-		// if (WaitForSingleObject(gDoneEvent, INFINITE) != WAIT_OBJECT_0);
-		//TRACE("\nWaitForSingleObject failed \n");
-
-		WaitForSingleObject(gDoneEvent, INFINITE);
-
-		CloseHandle(gDoneEvent);
-
-		// Delete all timers in the timer queue.
-		// if (!DeleteTimerQueue(hTimerQueue));
-		//TRACE("\nDeleteTimerQueue failed \n");
-
-	}
-
-	void TestApp::ConfigureFont(int fontHeight, int fontWidth) {
-		font.CreateFont(
-			fontHeight,
-			fontWidth,
-			0,
-			FW_BOLD,
-			FW_DONTCARE,
-			FALSE,
-			FALSE,
-			FALSE,
-			DEFAULT_CHARSET,
-			OUT_DEFAULT_PRECIS,
-			CLIP_DEFAULT_PRECIS,
-			DEFAULT_QUALITY,
-			DEFAULT_PITCH,
-			NULL
-		);
-	}
+	
 
 
 	BOOL TestApp::openTestSerialPort() {
@@ -219,33 +106,6 @@ extern int intError;
 		}
 		return(TRUE);
 	}
-	
-	BOOL TestApp::DisplayMessageBox(LPCTSTR strTopLine, LPCTSTR strBottomLine, int boxType)
-	{
-		BOOL tryAgain = false;
-		int msgBoxID;
-
-		if (boxType == 3) msgBoxID = MessageBox(strBottomLine, strTopLine, MB_ICONWARNING | MB_CANCELTRYCONTINUE | MB_DEFBUTTON2);
-		else if (boxType == 2) msgBoxID = MessageBox(strBottomLine, strTopLine, MB_ICONWARNING | MB_RETRYCANCEL | MB_DEFBUTTON2);
-		else msgBoxID = MessageBox(strBottomLine, strTopLine, MB_ICONWARNING | MB_OK | MB_DEFBUTTON2);
-
-		switch (msgBoxID)
-		{		
-		case IDTRYAGAIN:
-		case IDRETRY:
-			tryAgain = true;
-			break;
-		case IDCANCEL:
-		case IDOK:
-		case IDCONTINUE:
-		default:
-			tryAgain = false;
-			break;
-		}
-
-		return tryAgain;
-	}	
-	 
 	
 	
 	BOOL TestApp::WriteSerialPort (int targetDevice, char *ptrPacket){
@@ -340,23 +200,4 @@ extern int intError;
 	}
 
 
-	BOOL TestApp::InitializeHP34401(CSerialCtrlDemoDlg *ptrDialog) {
-		char strReset[BUFFERSIZE] = "$RESET";
-		char strEnableRemote[BUFFERSIZE] = "$REMOTE";
-		char strResponse[BUFFERSIZE];
-				
-		if (flgHPmeterInitialized) return (TRUE);
-
-		// 1) Send RESET command to HP34401:
-		if (!sendReceiveSerial(1, strReset, strResponse)) return (FALSE);
-		ptrDialog->m_static_Line1.SetWindowText((LPCTSTR)strResponse);
-
-		msDelay(500);
-
-		// 2) Enable RS232 remote control : ":SYST:REM\r\n"
-		if (!sendReceiveSerial(1, strEnableRemote, strResponse)) return (FALSE);
-		ptrDialog->m_static_Line1.SetWindowText((LPCTSTR)strResponse);
-
-		flgHPmeterInitialized = TRUE;
-		return(TRUE);
-	}
+	

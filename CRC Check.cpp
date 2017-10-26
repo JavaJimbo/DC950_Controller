@@ -21,7 +21,7 @@
 
 #include "stdafx.h"
 #include "Definitions.h"
-#include "SerialCom.h"
+#include "TestApp.h"
 
 extern int intError;
 

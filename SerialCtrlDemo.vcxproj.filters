@@ -30,6 +30,9 @@
     <ClCompile Include="SerialCom.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TestFunctions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource.h">
@@ -47,7 +50,7 @@
     <ClInclude Include="Definitions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SerialCom.h">
+    <ClInclude Include="TestApp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

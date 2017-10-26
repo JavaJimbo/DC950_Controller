@@ -35,19 +35,33 @@ protected:
 public:
 	//CComboBox m_comboSN;
 	//CComboBox m_comboBR;
-	CStatic m_static_Line5;
-	CStatic m_static_Line3;
+	CStatic m_static_passfail_status;
+	CStatic m_static_Line1;
 	CStatic m_static_Line2;
+	CStatic m_static_Line3;
 	CStatic m_static_Line4;
-	CStatic m_static_Line1;	
-	
+	CStatic m_static_Line5;	
+	CStatic m_static_Line6;
+	CButton m_static_ButtonRun;	
+	CButton m_static_ButtonPass;
+	CButton m_static_ButtonFail;
+	CButton m_static_ButtonHalt;
+	CButton m_static_ButtonPrevious;
 	CEdit m_EditSerialNumber;
 	
 	HANDLE m_timerHandle = NULL;
 	void timerHandler();
 	void StartTimer();
+	void StopTimer();
+	// BOOL testHandler();
+	BOOL InitializeSystem();	
+	void enableSerialNumberEntry();
+	void disableSerialNumberEntry();
+	void ConfigureFont(int fontHeight, int fontWidth);
 public:
 	afx_msg void OnBtnClickedRun();	
 	afx_msg void OnBtnClickedHalt();
 	afx_msg void OnBtnClickedPrevious();	
+	afx_msg void OnBnClickedButtonPass();
+	afx_msg void OnBnClickedButtonFail();
 };

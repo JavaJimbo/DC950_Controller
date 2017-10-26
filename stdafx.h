@@ -3,6 +3,7 @@
 // but are changed infrequently
 
 #pragma once
+#define _AFXDLL 1
 
 #ifndef _SECURE_ATL
 #define _SECURE_ATL 1

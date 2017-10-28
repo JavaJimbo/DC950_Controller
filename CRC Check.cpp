@@ -23,7 +23,7 @@
 #include "Definitions.h"
 #include "TestApp.h"
 
-extern int intError;
+// extern int intError;
 
 BOOL CRCcheck(char *ptrPacket);
 UINT16 CRCcalculate(char *ptrPacket, BOOL addCRCtoPacket);
@@ -80,7 +80,7 @@ UINT16 CRCcalculate(char *ptrPacket, BOOL addCRCtoPacket) {
     length = strlen(ptrPacket);
     if (length > (BUFFERSIZE - 8)) {
         ptrPacket = NULL;
-		intError = SYSTEM_ERROR;
+		// intError = SYSTEM_ERROR;
         return (0);
     }
 
@@ -106,7 +106,7 @@ BOOL CRCcheck(char *ptrPacket) {
     int intCRCvalue, intCRCcheck;
 
 	if (ptrPacket == NULL) {
-		intError = SYSTEM_ERROR;
+		// intError = SYSTEM_ERROR;
 		return (FALSE);
 	}
 								
@@ -126,7 +126,7 @@ BOOL CRCcheck(char *ptrPacket) {
     intCRCcheck = CRCcalculate(ptrPacket, FALSE);
 
     if (intCRCcheck == intCRCvalue) return (TRUE);
-	intError = CRC_ERROR;
+	// intError = CRC_ERROR;
     return (FALSE);
 }
 

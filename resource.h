@@ -6,6 +6,8 @@
 #define IDD_ABOUTBOX                    100
 #define IDS_ABOUTBOX                    101
 #define IDD_SERIALCTRLDEMO_DIALOG       102
+#define ID_INDICATOR_STATUSBAR1         103
+#define ID_INDICATOR_STATUSBAR2         104
 #define IDR_MAINFRAME                   128
 #define IDC_STATIC_LINE5                1007
 #define IDC_EDIT1                       1008
@@ -23,6 +25,13 @@
 #define IDC_BUTTON_FAIL                 1024
 #define IDC_STATIC_PASSFAIL_STATUS      1025
 #define IDC_STATIC_LINE6                1026
+#define IDC_STATIC_LABEL                1027
+#define IDC_STATIC_LINE7                1028
+#define IDC_STATIC_LINE8                1029
+#define IDC_STATIC_RESULT               1030
+#define IDC_STATIC_COMOUT               1031
+#define IDC_STATIC_COM_OUT              1031
+#define IDC_STATIC_COM_IN               1032
 
 // Next default values for new objects
 // 
@@ -30,7 +39,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        135
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1027
-#define _APS_NEXT_SYMED_VALUE           101
+#define _APS_NEXT_CONTROL_VALUE         1033
+#define _APS_NEXT_SYMED_VALUE           103
 #endif
 #endif

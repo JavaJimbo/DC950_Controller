@@ -8,7 +8,15 @@
 #define MAXTRIES 5
 #define MULTIMETER 1
 
-#define NUMBER_OF_STEPS 12
+#define TOTAL_STEPS 13
+#define FINAL_FAIL TOTAL_STEPS-1
+#define FINAL_PASS (TOTAL_STEPS-2)
+#define STARTUP 0
+#define LEFTPANEL 0
+#define RIGHTPANEL 1
+
+#define DATAIN 0
+#define DATAOUT 1
 
 enum ERROR_CODES {
 	NO_ERRORS = 0,
@@ -25,7 +33,7 @@ enum TIMER_STATES {
 };
 
 enum TEST_STATES {
-	NO_TEST = 0,
+	SUBSTEP = 0,
 	NOT_DONE,	
 	PASS,
 	FAIL
@@ -36,6 +44,8 @@ enum TEST_TYPE {
 	AUTO
 };
 
+#define REMOTE_TEST 6
+#define BARCODE_SCAN 1
 
 struct TestStep
 {
@@ -46,8 +56,10 @@ public:
 	char *lineFour = NULL;
 	char *lineFive = NULL;
 	char *lineSix = NULL;
-	int status = NOT_DONE;
-	int testType = MANUAL;
+	char *testName = NULL;
+	UINT Result = NOT_DONE;
+	int  testType = MANUAL;
+	int  testID = 0;
 	BOOL enableENTER = TRUE;
 	BOOL enablePREVIOUS = TRUE;
 	BOOL enableHALT = TRUE;

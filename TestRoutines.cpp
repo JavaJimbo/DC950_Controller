@@ -8,6 +8,7 @@
  *	10-15-17: Added pop up message boxes for error handling 
  *	10-20-71: Created ReadSerialPort() and WriteSerialPort() and simpified sendReceiveSerial()
  *  10-21-17: Added CRC
+ *	10-22-17: Cleaned up error handling, use intError. Works well with interface board->meter
  */
 
 // NOTE: INCUDES MUST BE IN THIS ORDER!!!
@@ -326,15 +327,16 @@ extern int intError;
 		if (outPacket == NULL) {
 			intError = SYSTEM_ERROR;
 			return (FALSE);
-		}					
+		}			
+
+		if (inPacket == NULL) return (TRUE);
+		inPacket[0] = '\0';
 
 		if (!openTestSerialPort()) return (FALSE);
 
 		CRCcalculate(outPacket, TRUE);
 		if (outPacket == NULL) return (FALSE);		
 		if (!WriteSerialPort(0, outPacket)) return (FALSE);		
-		if (inPacket == NULL) return (TRUE);		
-		inPacket[0] = '\0';
 		if (!ReadSerialPort(0, inPacket)) return (FALSE); 
 		if (!CRCcheck(inPacket)) return (FALSE);
 		for (int i = 0; i < BUFFERSIZE; i++) {
@@ -347,19 +349,19 @@ extern int intError;
 	}
 
 
-	BOOL TestApp::InitializeHP34401() {				
+	BOOL TestApp::InitializeHP34401(char *ptrResponse){
 		char strReset[BUFFERSIZE] = "$RESET";
 		char strEnableRemote[BUFFERSIZE] = "$REMOTE";
-		
+				
 		if (flgHPmeterInitialized) return (TRUE);
 
 		// 1) Send RESET command to HP34401:
-		if (!sendReceiveSerial(1, strReset, NULL)) return (FALSE);
+		if (!sendReceiveSerial(1, strReset, ptrResponse)) return (FALSE);
 
 		msDelay(500);
 
 		// 2) Enable RS232 remote control : ":SYST:REM\r\n"
-		if (!sendReceiveSerial(1, strEnableRemote, NULL)) return (FALSE);		
+		if (!sendReceiveSerial(1, strEnableRemote, ptrResponse)) return (FALSE);
 
 		flgHPmeterInitialized = TRUE;
 		return(TRUE);

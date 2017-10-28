@@ -19,16 +19,14 @@
 #include "TestApp.h"
 #include "Definitions.h"
 
-const char *testPortName = "COM8";
+const char *testPortName = "COM5";
 HANDLE m_testPortHandle = NULL;
 
 extern UINT16  CRCcalculate(char *ptrPacket, BOOL addCRCtoPacket);
 extern BOOL CRCcheck(char *ptrPacket);
-extern int intError;
+// extern int intError;
 	
-
-
-	BOOL TestApp::openTestSerialPort() {
+BOOL TestApp::openTestSerialPort() {
 		DCB m_testPortConfig;
 		if (!flgMainPortOpen){							// Get current configuration of serial communication port.
 														// if (GetCommState(m_NewPortHandle, &m_testPortConfig) == 0)			 
@@ -44,14 +42,15 @@ extern int intError;
 
 				if (GetCommState(m_testPortHandle, &m_testPortConfig) == 0) {
 					flgMainPortOpen = FALSE;
-					tryAgain = DisplayMessageBox("Serial Port Error", "Check USB connections \r\nTry again?", 2);
+					tryAgain = DisplayMessageBox("Serial Port Error", "Check USB connections and try again.", 1);
+					closeTestSerialPort();
 				}
 				else flgMainPortOpen = TRUE;
 				msDelay(100);
 			} while (!flgMainPortOpen && tryAgain);
 
 			if (!flgMainPortOpen) {
-				intError = PORT_ERROR;
+				// intError = PORT_ERROR;
 				return (FALSE);
 			}
 
@@ -72,7 +71,7 @@ extern int intError;
 			if (SetCommState(m_testPortHandle, &m_testPortConfig) == 0)
 			{
 				flgMainPortOpen = FALSE;
-				intError = PORT_ERROR;
+				// intError = PORT_ERROR;
 				AfxMessageBox("PROGRAM ERROR: Set configuration port has problem.");
 				return FALSE;
 			}
@@ -114,13 +113,13 @@ extern int intError;
 		int numBytesWritten = 0;		
 
 		if (ptrPacket == NULL) {
-			intError = SYSTEM_ERROR;
+			// intError = SYSTEM_ERROR;
 			return (FALSE);
 		}
 
 		length = strlen(ptrPacket);					
 		if (length >= BUFFERSIZE) {
-			intError = SYSTEM_ERROR;
+			// intError = SYSTEM_ERROR;
 			return (FALSE);
 		}		
 
@@ -131,7 +130,7 @@ extern int intError;
 		} while (trial < MAXTRIES && numBytesWritten == 0);
 
 		if (trial >= MAXTRIES) {
-			intError = TIMEOUT_ERROR;
+			// intError = TIMEOUT_ERROR;
 			if (targetDevice == MULTIMETER)	flgHPmeterInitialized = FALSE;
 			return (FALSE);
 		}
@@ -147,7 +146,7 @@ extern int intError;
 		int trial = 0;
 
 		if (ptrPacket == NULL) {			
-			intError = SYSTEM_ERROR;
+			// intError = SYSTEM_ERROR;
 			return (FALSE);
 		}
 
@@ -167,35 +166,46 @@ extern int intError;
 		} while (trial < MAXTRIES);
 
 		if (trial >= MAXTRIES) {
-			intError = TIMEOUT_ERROR;
+			// intError = TIMEOUT_ERROR;
 			return (FALSE);
 		}
 		return (TRUE);		
 	}
 	
 	// All serial communication goes through a single USB serial port to an interface board.	
-	BOOL TestApp::sendReceiveSerial(int targetDevice, char *outPacket, char *inPacket) {	
+	BOOL TestApp::sendReceiveSerial(CSerialCtrlDemoDlg *ptrDialog, int targetDevice, char *outPacket, char *inPacket) {
 		if (outPacket == NULL) {
-			intError = SYSTEM_ERROR;
+			// intError = SYSTEM_ERROR;
 			return (FALSE);
-		}			
+		}
 
 		if (inPacket == NULL) return (TRUE);
 		inPacket[0] = '\0';
 
 		if (!openTestSerialPort()) return (FALSE);
 
+		DisplaySerialComData(ptrDialog, DATAOUT, outPacket);
 		CRCcalculate(outPacket, TRUE);
-		if (outPacket == NULL) return (FALSE);		
-		if (!WriteSerialPort(0, outPacket)) return (FALSE);		
-		if (!ReadSerialPort(0, inPacket)) return (FALSE); 
-		if (!CRCcheck(inPacket)) return (FALSE);
-		for (int i = 0; i < BUFFERSIZE; i++) {
-			if (inPacket[i] == '\r') {
-				inPacket[i] = '\0';
-				break;
-			}
+		if (outPacket == NULL) return (FALSE);
+		
+		DisplaySerialComData(ptrDialog, DATAIN, "");
+
+		if (!WriteSerialPort(0, outPacket)) {
+			DisplaySerialComData(ptrDialog, DATAOUT, "COM PORT ERROR");
+			return (FALSE);
 		}
+
+		if (!ReadSerialPort(0, inPacket)) {
+			DisplaySerialComData(ptrDialog, DATAIN, "COM PORT ERROR");
+			return (FALSE);
+		}
+
+		if (!CRCcheck(inPacket)) {
+			DisplaySerialComData(ptrDialog, DATAIN, "CRC ERROR");
+			return (FALSE);
+		}
+		else DisplaySerialComData(ptrDialog, DATAIN, inPacket);
+
 		return (TRUE);		
 	}
 

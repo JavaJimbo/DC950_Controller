@@ -26,38 +26,40 @@ public:
 
 // Implementation
 protected:
-	// HICON m_hIcon;
-
 	// Generated message map functions
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
 public:
-	//CComboBox m_comboSN;
-	//CComboBox m_comboBR;
-	CStatic m_static_passfail_status;
+	CStatic m_static_BarcodeLabel;;
+	CStatic m_static_TestResult;
+	CStatic m_static_ComOut;
+	CStatic m_static_ComIn;
 	CStatic m_static_Line1;
 	CStatic m_static_Line2;
 	CStatic m_static_Line3;
 	CStatic m_static_Line4;
 	CStatic m_static_Line5;	
 	CStatic m_static_Line6;
-	CButton m_static_ButtonRun;	
+	CStatic m_static_DataIn;
+	CStatic m_static_DataOut;
+	CStatic m_static_TestName;
+	CButton m_static_ButtonEnter;	
 	CButton m_static_ButtonPass;
 	CButton m_static_ButtonFail;
 	CButton m_static_ButtonHalt;
 	CButton m_static_ButtonPrevious;
-	CEdit m_EditSerialNumber;
+	CEdit   m_BarcodeEditBox;
+	CStatusBar m_StatusBar;
+	CStatusBar m_StatusBarLeft;
 	
 	HANDLE m_timerHandle = NULL;
 	void timerHandler();
 	void StartTimer();
-	void StopTimer();
-	// BOOL testHandler();
-	BOOL InitializeSystem();	
-	void enableSerialNumberEntry();
-	void disableSerialNumberEntry();
-	void ConfigureFont(int fontHeight, int fontWidth);
+	void StopTimer();				
+	void CSerialCtrlDemoDlg::ConfigureFont(CFont &ptrFont, int fontHeight, int fontWidth, BOOL flgBold);
+	void CreateStatusBars();	
+	void Testhandler();	
 public:
 	afx_msg void OnBtnClickedRun();	
 	afx_msg void OnBtnClickedHalt();

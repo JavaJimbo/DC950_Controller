@@ -13,7 +13,7 @@ public:
 	BOOL TestApp::sendReceiveSerial(int targetDevice, char *outPacket, char *inPacket);
 	void msDelay(int milliseconds);
 	void ConfigureFont(int fontHeight, int fontWidth);
-	BOOL InitializeHP34401();	
+	BOOL InitializeHP34401(char *ptrResponse);
 	BOOL openTestSerialPort();
 	BOOL closeTestSerialPort();	
 	BOOL DisplayMessageBox(LPCTSTR strTopLine, LPCTSTR strBottomLine, int boxType);

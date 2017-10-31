@@ -9,6 +9,9 @@
 *	10-22-17: Cleaned up error handling, use intError. Works well with interface board->meter
 *	10-23-17: More cleanup, eliminated unnecessary statements. Renamed text labels.
 *	10-28-17: Testhandler() fully implemented, test sequence flow works well.
+*	10-30-17: Model number select radio buttons were added. 
+*			  Also changes made for barcode scanner to prevent CR exiting program.
+*   10-31-17: Converted RS232 communication to three COM ports.
 */
 
 
@@ -29,11 +32,10 @@
 
 CFont BigFont, SmallFont, MidFont;
 
-char strSendMeasureCommand[] = ":MEAS?\r\n";
-
 TestApp MyTestApp;		
+
 UINT  stepNumber = 0;
-BOOL previousButtonPushed = FALSE;
+// BOOL previousButtonPushed = FALSE;
 
 
 // Dialog constructor
@@ -44,9 +46,7 @@ CSerialCtrlDemoDlg::CSerialCtrlDemoDlg(CWnd* pParent /*=NULL*/)	: CDialog(CSeria
 
 // Dialog deconstructor: shut down system 
 CSerialCtrlDemoDlg::~CSerialCtrlDemoDlg() {
-	if (MyTestApp.flgMainPortOpen) {
-		MyTestApp.closeTestSerialPort();
-	}
+	MyTestApp.closeAllSerialPorts();
 }
 
 static UINT BASED_CODE indicators[] =
@@ -75,21 +75,28 @@ void CSerialCtrlDemoDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_RUN_BUTTON, m_static_ButtonEnter);
 	DDX_Control(pDX, IDC_BUTTON_PASS, m_static_ButtonPass);
 	DDX_Control(pDX, IDC_BUTTON_FAIL, m_static_ButtonFail);
+	DDX_Control(pDX, IDC_BUTTON_TEST, m_static_ButtonTest);
 	
 	DDX_Control(pDX, IDC_BUTTON_PREVIOUS, m_static_ButtonPrevious);
 	DDX_Control(pDX, IDC_BUTTON_HALT, m_static_ButtonHalt);
 	DDX_Control(pDX, IDC_EDIT1, m_BarcodeEditBox);
 	DDX_Control(pDX, IDC_STATIC_LABEL, m_static_BarcodeLabel);
+	DDX_Control(pDX, IDC_RADIO_STD, m_static_optStandard);
+	DDX_Control(pDX, IDC_RADIO_FILTER, m_static_optFilter);
+	DDX_Control(pDX, IDC_STATIC_MODELGROUP, m_static_modelGroup);
 }
 
 
 BEGIN_MESSAGE_MAP(CSerialCtrlDemoDlg, CDialog)
 	ON_WM_SYSCOMMAND()
+	ON_BN_CLICKED(IDC_BUTTON_TEST, &CSerialCtrlDemoDlg::OnBtnClickedTest)
 	ON_BN_CLICKED(IDC_RUN_BUTTON, &CSerialCtrlDemoDlg::OnBtnClickedRun)
 	ON_BN_CLICKED(IDC_BUTTON_HALT, &CSerialCtrlDemoDlg::OnBtnClickedHalt)
 	ON_BN_CLICKED(IDC_BUTTON_PREVIOUS, &CSerialCtrlDemoDlg::OnBtnClickedPrevious)
 	ON_BN_CLICKED(IDC_BUTTON_PASS, &CSerialCtrlDemoDlg::OnBnClickedButtonPass)
 	ON_BN_CLICKED(IDC_BUTTON_FAIL, &CSerialCtrlDemoDlg::OnBnClickedButtonFail)
+	ON_BN_CLICKED(IDC_RADIO_STD, &CSerialCtrlDemoDlg::OnBtnClickedRadioSTD)
+	ON_BN_CLICKED(IDC_RADIO_FILTER, &CSerialCtrlDemoDlg::OnBtnClickedRadioFilter)	
 END_MESSAGE_MAP()
 
 
@@ -120,10 +127,16 @@ BOOL CSerialCtrlDemoDlg::OnInitDialog()
 	pCtrlWnd->SetFont(&SmallFont, TRUE);
 	
 	MyTestApp.InitializeDisplayText();	
-	previousButtonPushed = FALSE;
+	// previousButtonPushed = FALSE;
 	stepNumber = 0;	
 	CreateStatusBars();
 	MyTestApp.DisplayStepNumber(this, stepNumber);		
+	m_static_optStandard.SetCheck(TRUE);
+	m_static_optFilter.SetCheck(FALSE);
+	// runFilterActuatorTest = (BOOL) m_static_optFilter.GetCheck();
+	// TestApp MyTestApp = new TestApp(this);
+	MyTestApp.ptrDialog = this;
+		 	
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -133,37 +146,19 @@ void CSerialCtrlDemoDlg::OnSysCommand(UINT nID, LPARAM lParam)
 }
 
 
-void CSerialCtrlDemoDlg::OnBnClickedButtonPass()
-{
-	MyTestApp.testStep[stepNumber].Result = PASS;
-	MyTestApp.DisplayPassFailStatus(stepNumber, this);
-	m_static_ButtonEnter.EnableWindow(TRUE);
-}
-
-
-void CSerialCtrlDemoDlg::OnBnClickedButtonFail()
-{
-	MyTestApp.testStep[stepNumber].Result = FAIL;
-	MyTestApp.DisplayPassFailStatus(stepNumber, this);
-	m_static_ButtonEnter.EnableWindow(TRUE);
-}
-
-
 // PREVIOUS BUTTON
 void CSerialCtrlDemoDlg::OnBtnClickedPrevious()
 {
-	UINT stepStatus;
-	int  testType;
+	int  stepType;
 	do {
 		if (stepNumber <= BARCODE_SCAN) break;
 		stepNumber--;
 		if (stepNumber == REMOTE_TEST) break;
+		
+		stepType = MyTestApp.testStep[stepNumber].stepType;
+	} while (stepType == AUTO || stepType == NOT_USED);
 
-		stepStatus = MyTestApp.testStep[stepNumber].Result;
-		testType = MyTestApp.testStep[stepNumber].testType;
-	} while (stepStatus == SUBSTEP || testType == AUTO);
-
-	if (stepNumber == 1) MyTestApp.enableBarcodeScan(this);
+	if (stepNumber == 1) MyTestApp.resetDisplays(this); //  enableBarcodeScan(this);
 	
 	MyTestApp.DisplayStepNumber(this, stepNumber);
 	MyTestApp.DisplayIntructions(stepNumber, this);
@@ -194,7 +189,7 @@ void CSerialCtrlDemoDlg::CreateStatusBars() {
 void CSerialCtrlDemoDlg::OnBtnClickedHalt()
 {
 	StopTimer();
-	previousButtonPushed = FALSE;
+	// previousButtonPushed = FALSE;
 }
 
 
@@ -268,6 +263,8 @@ void CSerialCtrlDemoDlg::StartTimer() {
 	}
 }
 
+
+
 void CSerialCtrlDemoDlg::OnBtnClickedRun() {
 	Testhandler();
 }
@@ -276,11 +273,30 @@ void CSerialCtrlDemoDlg::timerHandler() {
 	Testhandler();
 }
 
+void CSerialCtrlDemoDlg::OnBnClickedButtonPass()
+{
+	MyTestApp.testStep[stepNumber].Status = PASS;
+	Testhandler();
+	//MyTestApp.DisplayPassFailStatus(stepNumber, this);
+	//m_static_ButtonEnter.EnableWindow(TRUE);
+}
+
+void CSerialCtrlDemoDlg::OnBnClickedButtonFail()
+{
+	MyTestApp.testStep[stepNumber].Status = FAIL;
+	Testhandler();
+	//MyTestApp.DisplayPassFailStatus(stepNumber, this);
+	//m_static_ButtonEnter.EnableWindow(TRUE);
+}
+
 void CSerialCtrlDemoDlg::Testhandler()
 {
 		// Execute test step and display result:
 		int testResult = MyTestApp.Execute(stepNumber, this);
 		MyTestApp.DisplayPassFailStatus(stepNumber, this);
+		if (testResult == NOT_DONE_YET) return;
+
+		int stepType = MyTestApp.testStep[stepNumber].stepType;
 
 		// Step #0 checks RS232 communication.
 		// If system fails this step,
@@ -293,12 +309,13 @@ void CSerialCtrlDemoDlg::Testhandler()
 		else if (stepNumber == FINAL_PASS || stepNumber == FINAL_FAIL) 
 			stepNumber = 1;
 
-		// If unit passed or there was no test for this step, 
-		// then advance to next step.	
-		// If all tests are completed, reset system
-		// and set step back to 1 for testing next unit:
-		else if (testResult == PASS || testResult == SUBSTEP) 			
-			stepNumber++;		
+		// If unit passedd, then advance to next step.
+		// Skip over any step which is NOT USED for this model:
+		else if (testResult == PASS) {
+			do {
+				stepNumber++;
+			} while (MyTestApp.testStep[stepNumber].stepType == NOT_USED);
+		}
 		// Otherwise if unit failed, stop timer (it it's running)
 		// then query user to retry or quit testing unit:
 		else {
@@ -316,13 +333,53 @@ void CSerialCtrlDemoDlg::Testhandler()
 		// If this is the start of an automated sequence
 		// or if sequence is already in progress, start timer.
 		// If next step is manual, make sure timer is off:
-		if (MyTestApp.testStep[stepNumber].testType == AUTO) StartTimer();		
+		if (MyTestApp.testStep[stepNumber].stepType == AUTO) StartTimer();		
 		else StopTimer();
 		
-		if (stepNumber == 1) MyTestApp.enableBarcodeScan(this);
+		if (stepNumber == 1) MyTestApp.resetDisplays(this);// MyTestApp.enableBarcodeScan(this);
 		else MyTestApp.disableBarcodeScan(this);
 
 		// Now wait for user to hit ENTER
 		// or timer to call this routine and execute new step
 		return;
+}
+
+
+
+//void CSerialCtrlDemoDlg::OnBnClickedRadio1()
+//{
+	// TODO: Add your control notification handler code here
+//}
+
+
+void CSerialCtrlDemoDlg::OnBtnClickedTest() {
+	char strMeasure[BUFFERSIZE] = ":MEAS?\r\n";	
+			
+	if (!MyTestApp.sendReceiveSerial (HP_METER, this, strMeasure, NULL, TRUE))
+		MyTestApp.DisplayMessageBox("Inteface board COM error", "Check RS232 connections and POWER ON LED", 1);			
+}
+
+
+void CSerialCtrlDemoDlg::OnBtnClickedRadioSTD()
+{
+	MyTestApp.enableBarcodeScan(this);
+}
+
+void CSerialCtrlDemoDlg::OnBtnClickedRadioFilter()
+{
+	MyTestApp.enableBarcodeScan(this);
+}
+
+
+BOOL CSerialCtrlDemoDlg::PreTranslateMessage(MSG* pMsg)
+{
+	if (pMsg->message == WM_KEYDOWN)
+	{
+		if (pMsg->wParam == VK_RETURN || pMsg->wParam == VK_ESCAPE)
+		{
+			return TRUE;                // Do not process further
+		}
+	}
+
+	return CWnd::PreTranslateMessage(pMsg);
 }

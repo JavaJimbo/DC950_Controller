@@ -8,7 +8,7 @@
 #define MAXTRIES 5
 #define MULTIMETER 1
 
-#define TOTAL_STEPS 13
+#define TOTAL_STEPS 14
 #define FINAL_FAIL TOTAL_STEPS-1
 #define FINAL_PASS (TOTAL_STEPS-2)
 #define STARTUP 0
@@ -17,6 +17,12 @@
 
 #define DATAIN 0
 #define DATAOUT 1
+
+enum COM_PORTS {
+	INTERFACE_BOARD = 0,
+	HP_METER,
+	AC_POWER_SUPPLY
+};
 
 enum ERROR_CODES {
 	NO_ERRORS = 0,
@@ -32,15 +38,15 @@ enum TIMER_STATES {
 	TIMER_RUN
 };
 
-enum TEST_STATES {
-	SUBSTEP = 0,
-	NOT_DONE,	
+enum STATUS {
+	NOT_DONE_YET,	
 	PASS,
 	FAIL
 };
 
-enum TEST_TYPE {
-	MANUAL = 0,
+enum STEP_TYPE {	
+	NOT_USED = 0,	
+	MANUAL,
 	AUTO
 };
 
@@ -57,8 +63,8 @@ public:
 	char *lineFive = NULL;
 	char *lineSix = NULL;
 	char *testName = NULL;
-	UINT Result = NOT_DONE;
-	int  testType = MANUAL;
+	UINT Status = NOT_DONE_YET;
+	int  stepType = MANUAL;
 	int  testID = 0;
 	BOOL enableENTER = TRUE;
 	BOOL enablePREVIOUS = TRUE;

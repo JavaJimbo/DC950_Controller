@@ -45,13 +45,17 @@ public:
 	CStatic m_static_DataOut;
 	CStatic m_static_TestName;
 	CButton m_static_ButtonEnter;	
+	CButton m_static_ButtonTest;
 	CButton m_static_ButtonPass;
 	CButton m_static_ButtonFail;
 	CButton m_static_ButtonHalt;
 	CButton m_static_ButtonPrevious;
+	CButton m_static_optStandard;
+	CButton m_static_optFilter;
+	CButton m_static_modelGroup;
 	CEdit   m_BarcodeEditBox;
 	CStatusBar m_StatusBar;
-	CStatusBar m_StatusBarLeft;
+	//CStatusBar m_StatusBarLe
 	
 	HANDLE m_timerHandle = NULL;
 	void timerHandler();
@@ -60,10 +64,16 @@ public:
 	void CSerialCtrlDemoDlg::ConfigureFont(CFont &ptrFont, int fontHeight, int fontWidth, BOOL flgBold);
 	void CreateStatusBars();	
 	void Testhandler();	
+	BOOL CSerialCtrlDemoDlg::PreTranslateMessage(MSG* pMsg);
 public:
 	afx_msg void OnBtnClickedRun();	
+	afx_msg void OnBtnClickedTest();
 	afx_msg void OnBtnClickedHalt();
 	afx_msg void OnBtnClickedPrevious();	
 	afx_msg void OnBnClickedButtonPass();
 	afx_msg void OnBnClickedButtonFail();
+	// afx_msg void OnBnClickedRadio1();
+	afx_msg void OnBtnClickedRadioSTD();
+	afx_msg void OnBtnClickedRadioFilter();
+	// afx_msg void OnCancelOverride();
 };

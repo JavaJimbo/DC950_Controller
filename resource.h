@@ -32,6 +32,11 @@
 #define IDC_STATIC_COMOUT               1031
 #define IDC_STATIC_COM_OUT              1031
 #define IDC_STATIC_COM_IN               1032
+#define IDC_STATIC_MODELGROUP           1033
+#define IDC_RADIO_STD                   1034
+#define IDC_RADIO_FILTER                1035
+#define IDC_BUTTON3                     1036
+#define IDC_BUTTON_TEST                 1036
 
 // Next default values for new objects
 // 
@@ -39,7 +44,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        135
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1033
+#define _APS_NEXT_CONTROL_VALUE         1037
 #define _APS_NEXT_SYMED_VALUE           103
 #endif
 #endif

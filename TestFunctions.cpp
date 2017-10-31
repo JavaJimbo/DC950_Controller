@@ -4,7 +4,7 @@
  *
  * 10-28-17: Testhandler() fully implemented, test sequence flow works well.
  */
-
+// handleInterfaceBoard, handleHPmultiMeter, handleACpowerSupply;
 // NOTE: INCUDES MUST BE IN THIS ORDER!!!
 #include "stdafx.h"
 #include "SerialCtrlDemo.h"
@@ -14,6 +14,7 @@
 #include "Definitions.h"
 
 // int intError = 0;
+
 extern int stepNumber;
 CString strSerialNumber;
 
@@ -22,10 +23,8 @@ HANDLE hTimer = NULL;
 HANDLE hTimerQueue = NULL;
 
 	void TestApp::resetTestData() {
-		for (int i = 0; i < FINAL_PASS; i++) {
-			if (testStep[i].Result != SUBSTEP)
-				testStep[i].Result = NOT_DONE;
-		}
+		for (int i = 0; i < FINAL_PASS; i++) 
+			testStep[i].Status = NOT_DONE_YET;		
 	}
 
 	void TestApp::resetDisplays(CSerialCtrlDemoDlg *ptrDialog) {
@@ -38,25 +37,18 @@ HANDLE hTimerQueue = NULL;
 		ptrDialog->m_BarcodeEditBox.ShowWindow(TRUE);
 		ptrDialog->m_static_BarcodeLabel.ShowWindow(TRUE);
 		ptrDialog->m_static_DataIn.SetWindowText("");
-		ptrDialog->m_static_DataOut.SetWindowText("");		
+		ptrDialog->m_static_DataOut.SetWindowText("");	
+		ptrDialog->m_static_optFilter.EnableWindow(TRUE);
+		ptrDialog->m_static_optStandard.EnableWindow(TRUE);
+		ptrDialog->m_static_modelGroup.EnableWindow(TRUE);
+		ptrDialog->m_static_BarcodeLabel.ShowWindow(TRUE);
+		enableBarcodeScan(ptrDialog);
+		InitializeDisplayText();
 	}
 
-	TestApp::TestApp(CWnd* pParent) {		
-		flgIniFileOpen = TRUE;
-		flgHPmeterInitialized = FALSE;				
-
-		TCHAR* pFileName = _T("INIfile.txt");
-		try
-		{
-			CStdioFile fileHandle(pFileName, CFile::modeRead | CFile::typeText);
-		}
-		catch (CFileException* pe)
-		{
-			MessageBox("Cannot open INIfile.txt", "FILE ERROR", MB_OK);
-			flgIniFileOpen = FALSE;
-			pe->Delete();
-			// intError = SYSTEM_ERROR;
-		}		
+	TestApp::TestApp(CWnd* pParent) {
+		
+		// handleInterfaceBoard = handleHPmultiMeter = handleACpowerSupply = NULL;
 	}
 
 	BOOL TestApp::InitializeDisplayText() {	
@@ -69,30 +61,28 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = NULL;
 		testStep[i].lineFive = NULL;
 		testStep[i].lineSix = NULL;
-		testStep[i].testType = 0;
+		testStep[i].stepType = 0;
 		testStep[i].enableENTER = 0;
 		testStep[i].enablePASS = 0;
 		testStep[i].enableFAIL = 0;
 		testStep[i].enableHALT = 0;
 		testStep[i].enablePREVIOUS = 0;
-		testStep[i].Result = 0;
 		i++;
 
 		// 1 SCAN BARCODE
 		testStep[i].testName = "New Unit";
-		testStep[i].lineOne = "Scan barcode";
-		testStep[i].lineTwo = "or type serial number";				
-		testStep[i].lineThree = "in box above. Then click ENTER";
+		testStep[i].lineOne = "Scan barcode or type serial number";
+		testStep[i].lineTwo = "in box above. Also select Model.";				
+		testStep[i].lineThree = "Then press ENTER to begin tests.";
 		testStep[i].lineFour = "";
 		testStep[i].lineFive = "";
 		testStep[i].lineSix = "";
-		testStep[i].testType = MANUAL;
+		testStep[i].stepType = MANUAL;
 		testStep[i].enableENTER = TRUE;
 		testStep[i].enablePASS = FALSE;
 		testStep[i].enableFAIL = FALSE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = FALSE;		
-		testStep[i].Result = NOT_DONE;
 		i++;
 
 		// 2 HI POT TEST
@@ -102,13 +92,12 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = "Then click ENTER for next test.";
 		testStep[i].lineFive = "";
 		testStep[i].lineSix = "";
-		testStep[i].testType = MANUAL;
+		testStep[i].stepType = MANUAL;
 		testStep[i].enableENTER = FALSE;
 		testStep[i].enablePASS = TRUE;
 		testStep[i].enableFAIL = TRUE;		
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = TRUE;
-		testStep[i].Result = NOT_DONE;
 		i++;
 
 		// 3 GROUND BOND TEST
@@ -118,13 +107,12 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = "Then click ENTER for next test.";
 		testStep[i].lineFive = "";
 		testStep[i].lineSix = "";
-		testStep[i].testType = MANUAL;
+		testStep[i].stepType = MANUAL;
 		testStep[i].enableENTER = FALSE;
 		testStep[i].enablePASS = TRUE;
 		testStep[i].enableFAIL = TRUE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = TRUE;
-		testStep[i].Result = NOT_DONE;
 		i++;
 
 		// 4 POT TEST LOW
@@ -134,13 +122,12 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = "Turn POT to zero, then turn ON DC950";
 		testStep[i].lineFive = "Press ENTER to run test";
 		testStep[i].lineSix = "";
-		testStep[i].testType = MANUAL;
+		testStep[i].stepType = MANUAL;
 		testStep[i].enableENTER = TRUE;
 		testStep[i].enablePASS = FALSE;
 		testStep[i].enableFAIL = FALSE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = TRUE;
-		testStep[i].Result = NOT_DONE;
 		i++;
 
 		// 5 POT TEST HIGH
@@ -150,13 +137,12 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = "";
 		testStep[i].lineFive = "";
 		testStep[i].lineSix = "";
-		testStep[i].testType = MANUAL;
+		testStep[i].stepType = MANUAL;
 		testStep[i].enableENTER = TRUE;
 		testStep[i].enablePASS = FALSE;
 		testStep[i].enableFAIL = FALSE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = TRUE;
-		testStep[i].Result = NOT_DONE;
 		i++;
 
 		// 6 REMOTE TEST SETUP
@@ -167,13 +153,12 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = "Plug in DB9 connectors on back of DC950";
 		testStep[i].lineFive = "Press ENTER when ready";
 		testStep[i].lineSix = "";
-		testStep[i].testType = MANUAL;
+		testStep[i].stepType = MANUAL; //  SUBSTEP;
 		testStep[i].enableENTER = TRUE;
 		testStep[i].enablePASS = FALSE;
 		testStep[i].enableFAIL = FALSE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = TRUE;
-		testStep[i].Result = NOT_DONE;
 		i++;
 		
 		// 7 REMOTE POT TEST
@@ -184,13 +169,12 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = "";
 		testStep[i].lineFive = "";
 		testStep[i].lineSix = "";
-		testStep[i].testType = AUTO;
+		testStep[i].stepType = AUTO;
 		testStep[i].enableENTER = FALSE;
 		testStep[i].enablePASS = FALSE;
 		testStep[i].enableFAIL = FALSE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = FALSE;
-		testStep[i].Result = NOT_DONE;
 		i++;
 
 		// 8 AC POWER SWEEP
@@ -201,33 +185,47 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = "";
 		testStep[i].lineFive = "";
 		testStep[i].lineSix = "";
-		testStep[i].testType = AUTO;
+		testStep[i].stepType = AUTO;
 		testStep[i].enableENTER = FALSE;
 		testStep[i].enablePASS = FALSE;
 		testStep[i].enableFAIL = FALSE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = TRUE;
-		testStep[i].Result = NOT_DONE;
 		i++;
 
-		// 9 ACTUATOR TEST
-		testStep[i].testName = "Actuator Test:";
-		testStep[i].lineOne = "Running Remote test";
-		testStep[i].lineTwo = "Please wait...";
+		// 9 ACTUATOR OPEN TEST
+		testStep[i].testName = "Actuator OPEN Test:";
+		testStep[i].lineOne = "Actuator should be all the way open,";
+		testStep[i].lineTwo = "and light should should be fully visible.";
 		testStep[i].lineThree = "";
-		testStep[i].lineFour = "";
-		testStep[i].lineFive = "";
+		testStep[i].lineFour = "Click PASS if actuator is OPEN";
+		testStep[i].lineFive = "Click FAIL if it is closed";
 		testStep[i].lineSix = "";
-		testStep[i].testType = AUTO;
+		testStep[i].stepType = MANUAL;
 		testStep[i].enableENTER = FALSE;
-		testStep[i].enablePASS = FALSE;
-		testStep[i].enableFAIL = FALSE;
+		testStep[i].enablePASS = TRUE;
+		testStep[i].enableFAIL = TRUE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = TRUE;
-		testStep[i].Result = NOT_DONE;
 		i++;
 
-		// 10 SPECTROMETER TEST
+		// 10 ACTUATOR CLOSED TEST
+		testStep[i].testName = "Actuator CLOSED Test:";
+		testStep[i].lineOne = "Actuator should be completed closed,";
+		testStep[i].lineTwo = "and no light should be shining";
+		testStep[i].lineThree = "through hole.";
+		testStep[i].lineFour = "Click PASS if actuator is CLOSED";
+		testStep[i].lineFive = "Click FAIL if it is open";
+		testStep[i].lineSix = "";
+		testStep[i].stepType = MANUAL;
+		testStep[i].enableENTER = FALSE;
+		testStep[i].enablePASS = TRUE;
+		testStep[i].enableFAIL = TRUE;
+		testStep[i].enableHALT = FALSE;
+		testStep[i].enablePREVIOUS = TRUE;
+		i++;
+
+		// 11 SPECTROMETER TEST
 		testStep[i].testName = "Spectrometer Test:";
 		testStep[i].lineOne = "Running Remote test";
 		testStep[i].lineTwo = "Please wait...";
@@ -235,16 +233,15 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = "";
 		testStep[i].lineFive = "";
 		testStep[i].lineSix = "";
-		testStep[i].testType = AUTO;
+		testStep[i].stepType = AUTO;
 		testStep[i].enableENTER = FALSE;
 		testStep[i].enablePASS = FALSE;
 		testStep[i].enableFAIL = FALSE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = FALSE;
-		testStep[i].Result = NOT_DONE;
 		i++;
 
-		// 11 TEST COMPLETE
+		// 12 TEST COMPLETE
 		testStep[i].testName = "Spectrometer Test:";
 		testStep[i].lineOne = "All tests PASSED";
 		testStep[i].lineTwo = "Turn off DC950";
@@ -252,16 +249,15 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = "Then press ENTER to test next unit";
 		testStep[i].lineFive = "";
 		testStep[i].lineSix = "";
-		testStep[i].testType = MANUAL;
+		testStep[i].stepType = MANUAL;
 		testStep[i].enableENTER = TRUE;
 		testStep[i].enablePASS = FALSE;
 		testStep[i].enableFAIL = FALSE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = TRUE;
-		testStep[i].Result = SUBSTEP;
 		i++;
 
-		// 12 FAILED UNIT		
+		// 13 FAILED UNIT		
 		testStep[i].testName = NULL;
 		testStep[i].lineOne = "UNIT FAILED";
 		testStep[i].lineTwo = "Turn off DC950";
@@ -269,13 +265,12 @@ HANDLE hTimerQueue = NULL;
 		testStep[i].lineFour = "Attach FAIL tag";
 		testStep[i].lineFive = "Press ENTER to test new unit.";
 		testStep[i].lineSix = "";
-		testStep[i].testType = MANUAL;
+		testStep[i].stepType = MANUAL;
 		testStep[i].enableENTER = TRUE;
 		testStep[i].enablePASS = FALSE;
 		testStep[i].enableFAIL = FALSE;
 		testStep[i].enableHALT = FALSE;
 		testStep[i].enablePREVIOUS = FALSE;
-		testStep[i].Result = SUBSTEP;
 		return TRUE;
 	}
 
@@ -322,9 +317,6 @@ HANDLE hTimerQueue = NULL;
 	}
 	
 
-	TestApp::~TestApp() {
-		TestApp::closeTestSerialPort();
-	}
 
 	VOID CALLBACK TimerRoutine(PVOID lpParam, BOOLEAN TimerOrWaitFired)
 	{
@@ -342,33 +334,38 @@ HANDLE hTimerQueue = NULL;
 	
 
 	BOOL TestApp::InitializeHP34401(CSerialCtrlDemoDlg *ptrDialog) {
-		char strReset[BUFFERSIZE] = "$RESET";
-		char strEnableRemote[BUFFERSIZE] = "$REMOTE";
-		char strResponse[BUFFERSIZE];
-				
-		if (flgHPmeterInitialized) return (TRUE);
+		char strReset[BUFFERSIZE] = "*RST\r\n";
+		char strEnableRemote[BUFFERSIZE] = ":SYST:REM\r\n";
+		char strMeasure[BUFFERSIZE] = ":MEAS?\r\n";		
 
 		// 1) Send RESET command to HP34401:
-		if (!sendReceiveSerial(ptrDialog, 1, strReset, strResponse)) {
-			DisplayMessageBox("Inteface board COM error", "Check RS232 connections and POWER ON LED", 1);
-			return (FALSE);
+		if (!sendReceiveSerial(HP_METER, ptrDialog, strReset, NULL, FALSE)) {
+			DisplayMessageBox("HP MULTIMETER COM ERROR", "Make sure meter power is ON, \r\nCheck RS232 and USB cables", 1);
+			return FALSE;
 		}
 
 		msDelay(500);
 
-		// 2) Enable RS232 remote control:
-		if (!sendReceiveSerial(ptrDialog, 1, strEnableRemote, strResponse)) {
-			DisplayMessageBox("Inteface board COM error", "Check RS232 connections and POWER ON LED", 1);
-			return (FALSE);
+		// 2) Enable RS232 remote control on HP34401:
+		if (!sendReceiveSerial(HP_METER, ptrDialog, strEnableRemote, NULL, FALSE)) {
+			DisplayMessageBox("HP MULTIMETER COM ERROR", "Make sure meter power is ON, \r\nCheck RS232 and USB cables", 1);
+			return FALSE;
 		}
 
-		flgHPmeterInitialized = TRUE;
-		return(TRUE);
+		msDelay(500);
+
+		// Now try getting a measurement from the HP34401:
+		if (!sendReceiveSerial(HP_METER, ptrDialog, strMeasure, NULL, TRUE)) {
+			DisplayMessageBox("HP MULTIMETER COM ERROR", "Make sure meter power is ON, \r\nCheck RS232 and USB cables", 1);
+			return FALSE;
+		}
+
+		return TRUE;
 	}
 
-	int TestApp::Execute(int stepNumber, CSerialCtrlDemoDlg *ptrDialog){
-		
-		int testStatus = 0; // testStep[stepNumber].Result;
+	int TestApp::Execute(int stepNumber, CSerialCtrlDemoDlg *ptrDialog){		
+		int testStatus = 0; // testStep[stepNumber].Status;		
+		static BOOL runFilterActuatorTest = FALSE;
 
 		switch (stepNumber) {
 		case 0:			// 0 Start Up
@@ -380,11 +377,14 @@ HANDLE hTimerQueue = NULL;
 				testStatus = FAIL;				
 				break;
 			}
-			testStatus = PASS;						
+			testStatus = PASS;		
+			runFilterActuatorTest = (BOOL)ptrDialog->m_static_optFilter.GetCheck();
+			ptrDialog->m_static_optFilter.EnableWindow(FALSE);
+			ptrDialog->m_static_optStandard.EnableWindow(FALSE);
 			break;
 		case 2:			// 2 HI POT TEST			
 		case 3:			// 3 GROUND BOND TEST		
-			testStatus = testStep[stepNumber].Result;
+			testStatus = testStep[stepNumber].Status;
 			break;
 		case 4:			// 4 POT TEST LOW
 			testStatus = PASS;
@@ -393,33 +393,36 @@ HANDLE hTimerQueue = NULL;
 			testStatus = PASS;
 			break;
 		case 6:			// 6 REMOTE TEST SETUP
-			testStatus = SUBSTEP;
-			break;
-		case 7:			// 6 REMOTE POT TEST
 			testStatus = PASS;
 			break;
-		case 8:			// 5 AC POWER SWEEP
+		case 7:			// 7 REMOTE POT TEST
 			testStatus = PASS;
 			break;
-		case 9:		// 8 ACTUATOR TEST
+		case 8:			// 8 AC POWER SWEEP
 			testStatus = PASS;
 			break;
-		case 10:		// 9 SPECTROMETER TEST
+		case 9:			// 9 ACTUATOR OPEN TEST			
 			testStatus = PASS;
 			break;
-		case 11:		// 10 TEST COMPLETE
+		case 10:		// 10 ACTUATOR CLOSED TEST			
+			testStatus = PASS;
+			break;
+		case 11:		// 11 SPECTROMETER TEST
+			testStatus = PASS;
+			break;
+		case 12:		// 12 TEST COMPLETE
 			resetTestData();
 			resetDisplays(ptrDialog);			
 			testStatus = PASS;
 			break;
-		case 12:		// 11 UNIT FAILED
+		case 13:		// 13 UNIT FAILED
 			resetTestData();
 			resetDisplays(ptrDialog);			
 			testStatus = FAIL;
 		default:
 			break;
 		}
-		testStep[stepNumber].Result = testStatus;
+		testStep[stepNumber].Status = testStatus;
 		return testStatus;
 	}
 	
@@ -480,14 +483,18 @@ HANDLE hTimerQueue = NULL;
 		
 	void TestApp::DisplayPassFailStatus(int stepNumber, CSerialCtrlDemoDlg *ptrDialog) {
 		if (stepNumber > STARTUP && stepNumber < FINAL_PASS) {
-			if (testStep[stepNumber].Result == PASS) {
+			if (testStep[stepNumber].Status == PASS) {
 				ptrDialog->m_static_TestName.SetWindowText(testStep[stepNumber].testName);
 				ptrDialog->m_static_TestResult.SetWindowText("PASS");
 			}
-			else if (testStep[stepNumber].Result == FAIL) {
+			else if (testStep[stepNumber].Status == FAIL) {
 				ptrDialog->m_static_TestName.SetWindowText(testStep[stepNumber].testName);
 				ptrDialog->m_static_TestResult.SetWindowText("FAIL");
-			}			
+			}	
+			else if (testStep[stepNumber].Status == NOT_DONE_YET) {
+				ptrDialog->m_static_TestName.SetWindowText(testStep[stepNumber].testName);
+				ptrDialog->m_static_TestResult.SetWindowText("PLEASE WAIT...");
+			}
 		}
 	}
 	
@@ -508,20 +515,30 @@ HANDLE hTimerQueue = NULL;
 	{
 		if (!InitializeSystem(ptrDialog)) return (FAIL);		
 		else {			
-			resetDisplays(ptrDialog);
-			ptrDialog->m_static_BarcodeLabel.ShowWindow(TRUE);
+			resetDisplays(ptrDialog);			
 			return (PASS);
 		}
 	}
 
+
+
 	BOOL TestApp::InitializeSystem(CSerialCtrlDemoDlg *ptrDialog) {
-		if (openTestSerialPort()) {
+		if (openTestSerialPort(portNameInterfaceBoard, &handleInterfaceBoard)
+			&& openTestSerialPort(portNameMultiMeter, &handleHPmultiMeter)
+				&& openTestSerialPort(portNameACpowerSupply, &handleACpowerSupply)){
+
 			ptrDialog->m_static_DataOut.SetWindowText("COM Data Out");
 			ptrDialog->m_static_DataIn.SetWindowText("COM Data In");
-			if (InitializeHP34401(ptrDialog)) return TRUE;
+			if (InitializeHP34401(ptrDialog)) 
+				return TRUE;
 			else return FALSE;
 		}
 		else return FALSE;		
 	}
 
+	TestApp::~TestApp() {
+		//closeSerialPort(ptrDialog->handleInterfaceBoard);
+		//closeSerialPort(ptrDialog->handleHPmultiMeter);
+		//closeSerialPort(ptrDialog->handleACpowerSupply);
+	}
 	

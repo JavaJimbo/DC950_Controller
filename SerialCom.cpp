@@ -9,6 +9,7 @@
  *	10-20-71: Created ReadSerialPort() and WriteSerialPort() and simpified sendReceiveSerial()
  *  10-21-17: Added CRC
  *	10-22-17: Cleaned up error handling, use intError. Works well with interface board->meter
+ *  10-31-17: Converted RS232 communication to three COM ports.
  */
 
 // NOTE: INCUDES MUST BE IN THIS ORDER!!!
@@ -19,20 +20,22 @@
 #include "TestApp.h"
 #include "Definitions.h"
 
-const char *testPortName = "COM5";
-HANDLE m_testPortHandle = NULL;
+
+// const char portNamemultiMeter
+// const char portNamepowerSupply
 
 extern UINT16  CRCcalculate(char *ptrPacket, BOOL addCRCtoPacket);
 extern BOOL CRCcheck(char *ptrPacket);
 // extern int intError;
-	
-BOOL TestApp::openTestSerialPort() {
-		DCB m_testPortConfig;
-		if (!flgMainPortOpen){							// Get current configuration of serial communication port.
-														// if (GetCommState(m_NewPortHandle, &m_testPortConfig) == 0)			 
-			int tryAgain;
+
+// hPort = CreateFile("\\\\.\\COM10", GENERIC_READ | GENERIC_WRITE, 0, 0, OPEN_EXISTING, 0, 0);
+
+BOOL TestApp::openTestSerialPort(const char *ptrPortName, HANDLE *ptrPortHandle) {
+		DCB serialPortConfig;
+		BOOL tryAgain = FALSE;		
+
 			do {
-				m_testPortHandle = CreateFile(testPortName,  // Specify port device: default "COM1"		
+					*ptrPortHandle = CreateFile(ptrPortName,  // Specify port device: default "COM1"		
 					GENERIC_READ | GENERIC_WRITE,       // Specify mode that open device.
 					0,                                  // the devide isn't shared.
 					NULL,                               // the object gets a default security.
@@ -40,19 +43,16 @@ BOOL TestApp::openTestSerialPort() {
 					0,                                  // default.
 					NULL);                              // default.
 
-				if (GetCommState(m_testPortHandle, &m_testPortConfig) == 0) {
-					flgMainPortOpen = FALSE;
-					tryAgain = DisplayMessageBox("Serial Port Error", "Check USB connections and try again.", 1);
-					closeTestSerialPort();
-				}
-				else flgMainPortOpen = TRUE;
-				msDelay(100);
-			} while (!flgMainPortOpen && tryAgain);
+					char errorMessage[BUFFERSIZE];
+					sprintf_s(errorMessage, "ERROR: cannot open %s port", ptrPortName);
 
-			if (!flgMainPortOpen) {
-				// intError = PORT_ERROR;
-				return (FALSE);
-			}
+				if (GetCommState(*ptrPortHandle, &serialPortConfig) == 0) {
+					tryAgain = DisplayMessageBox(errorMessage, "Check USB connections and try again.", 2);
+					if (!tryAgain) return FALSE;
+				}
+				else break;   // SUCCESS! Port opened OK, no need to try opening it again
+				msDelay(100);
+			} while (tryAgain);
 
 			DCB dcb;
 			dcb.BaudRate = CBR_9600;			// $$$$ Fix baud rate at 9600, 1 stop bit, no parity, 8 data bits
@@ -61,17 +61,15 @@ BOOL TestApp::openTestSerialPort() {
 			dcb.ByteSize = DATABITS_8;
 
 			// Assign user parameter.
-			m_testPortConfig.BaudRate = dcb.BaudRate;    // Specify buad rate of communicaiton.
-			m_testPortConfig.StopBits = dcb.StopBits;    // Specify stopbit of communication.
-			m_testPortConfig.Parity = dcb.Parity;        // Specify parity of communication.
-			m_testPortConfig.ByteSize = dcb.ByteSize;    // Specify  byte of size of communication.
+			serialPortConfig.BaudRate = dcb.BaudRate;    // Specify buad rate of communicaiton.
+			serialPortConfig.StopBits = dcb.StopBits;    // Specify stopbit of communication.
+			serialPortConfig.Parity = dcb.Parity;        // Specify parity of communication.
+			serialPortConfig.ByteSize = dcb.ByteSize;    // Specify  byte of size of communication.
 
 														 // Set current configuration of serial communication port.		
-														 // if (SetCommState(m_NewPortHandle, &m_testPortConfig) == 0)
-			if (SetCommState(m_testPortHandle, &m_testPortConfig) == 0)
+														 // if (SetCommState(m_NewPortHandle, &serialPortConfig) == 0)
+			if (SetCommState(*ptrPortHandle, &serialPortConfig) == 0)
 			{
-				flgMainPortOpen = FALSE;
-				// intError = PORT_ERROR;
 				AfxMessageBox("PROGRAM ERROR: Set configuration port has problem.");
 				return FALSE;
 			}
@@ -84,39 +82,36 @@ BOOL TestApp::openTestSerialPort() {
 			comTimeOut.WriteTotalTimeoutMultiplier = 3;
 			comTimeOut.WriteTotalTimeoutConstant = 2;
 
-			SetCommTimeouts(m_testPortHandle, &comTimeOut);		// set the time-out parameter into device control.
-
-															//m_NewPortStatus = TRUE;			
-			return TRUE;
-		}
-		return TRUE;  // Return true if port is already open
+			SetCommTimeouts(*ptrPortHandle, &comTimeOut);		// set the time-out parameter into device control.												
+			return TRUE;  // Return TRUE to indicate port is successfully opened and configured
 	}
 
-	BOOL TestApp::closeTestSerialPort() {
-		if (flgMainPortOpen)               // Port need to be open before.
+	BOOL TestApp::closeSerialPort(HANDLE ptrPortHandle) {
+		if (ptrPortHandle == NULL) return TRUE;
+
+		if (!CloseHandle(ptrPortHandle))
 		{
-			flgMainPortOpen = FALSE;              // Update status
-			flgHPmeterInitialized = FALSE;
-			if (!CloseHandle(m_testPortHandle))   // Call this function to close port.
-			{
-				AfxMessageBox("Port Closing failed.");
-				return FALSE;
-			}
+			AfxMessageBox("Port Closing failed.");
+			return FALSE;
 		}
+		ptrPortHandle = NULL;
 		return(TRUE);
 	}
+
+	void TestApp::closeAllSerialPorts() {
+		closeSerialPort(handleInterfaceBoard);
+		closeSerialPort(handleHPmultiMeter);
+		closeSerialPort(handleACpowerSupply);
+	}
 	
 	
-	BOOL TestApp::WriteSerialPort (int targetDevice, char *ptrPacket){
+	BOOL TestApp::WriteSerialPort (HANDLE ptrPortHandle, char *ptrPacket) {
 		int length;
 		int trial = 0;
 		int numBytesWritten = 0;		
 
-		if (ptrPacket == NULL) {
-			// intError = SYSTEM_ERROR;
-			return (FALSE);
-		}
-
+		if (ptrPacket == NULL || ptrPortHandle == NULL) return (FALSE);
+		
 		length = strlen(ptrPacket);					
 		if (length >= BUFFERSIZE) {
 			// intError = SYSTEM_ERROR;
@@ -125,20 +120,16 @@ BOOL TestApp::openTestSerialPort() {
 
 		do {
 			trial++;
-			if (WriteFile(m_testPortHandle, ptrPacket, length, (LPDWORD) &numBytesWritten, NULL)) break;
+			if (WriteFile(ptrPortHandle, ptrPacket, length, (LPDWORD) &numBytesWritten, NULL)) break;
 			msDelay(100);
 		} while (trial < MAXTRIES && numBytesWritten == 0);
 
-		if (trial >= MAXTRIES) {
-			// intError = TIMEOUT_ERROR;
-			if (targetDevice == MULTIMETER)	flgHPmeterInitialized = FALSE;
-			return (FALSE);
-		}
-		return (TRUE);		
+		if (trial >= MAXTRIES) return FALSE;
+		else return TRUE;
 	}
 	
 		
-	BOOL TestApp::ReadSerialPort(int targetDevice, char *ptrPacket) {
+	BOOL TestApp::ReadSerialPort(HANDLE ptrPortHandle, char *ptrPacket) {
 		int totalBytesRead = 0;
 		DWORD numBytesRead;
 		char inBytes[BUFFERSIZE];
@@ -146,17 +137,15 @@ BOOL TestApp::openTestSerialPort() {
 		int trial = 0;
 
 		if (ptrPacket == NULL) {			
-			// intError = SYSTEM_ERROR;
 			return (FALSE);
 		}
 
-		// Wait for response:
 		trial = 0;
 		ptrPacket[0] = '\0';
 		do {
 			trial++;
 			msDelay(100);
-			if (ReadFile(m_testPortHandle, inBytes, BUFFERSIZE, &numBytesRead, NULL)) {
+			if (ReadFile(ptrPortHandle, inBytes, BUFFERSIZE, &numBytesRead, NULL)) {
 				if (numBytesRead > 0 && numBytesRead < BUFFERSIZE) {
 					inBytes[numBytesRead] = '\0';
 					strcat_s(ptrPacket, BUFFERSIZE, inBytes);
@@ -165,47 +154,62 @@ BOOL TestApp::openTestSerialPort() {
 			}
 		} while (trial < MAXTRIES);
 
-		if (trial >= MAXTRIES) {
-			// intError = TIMEOUT_ERROR;
-			return (FALSE);
-		}
-		return (TRUE);		
+		if (trial >= MAXTRIES) return (FALSE);		
+		else return (TRUE);		
 	}
 	
-	// All serial communication goes through a single USB serial port to an interface board.	
-	BOOL TestApp::sendReceiveSerial(CSerialCtrlDemoDlg *ptrDialog, int targetDevice, char *outPacket, char *inPacket) {
-		if (outPacket == NULL) {
-			// intError = SYSTEM_ERROR;
+	BOOL TestApp::sendReceiveSerial(int COMdevice, CSerialCtrlDemoDlg *ptrDialog, char *outPacket, char *inPacket, BOOL expectReply) {
+
+		HANDLE ptrPortHandle = NULL;
+
+		switch (COMdevice) {
+		case HP_METER:
+			ptrPortHandle = handleHPmultiMeter;
+			break;
+		case AC_POWER_SUPPLY:
+			ptrPortHandle = handleACpowerSupply;
+			break;
+		case INTERFACE_BOARD:
+			ptrPortHandle = handleInterfaceBoard;
+		default:
+			break;
+		}		
+
+		if (ptrPortHandle == NULL || outPacket == NULL) {
 			return (FALSE);
 		}
 
-		if (inPacket == NULL) return (TRUE);
-		inPacket[0] = '\0';
-
-		if (!openTestSerialPort()) return (FALSE);
-
 		DisplaySerialComData(ptrDialog, DATAOUT, outPacket);
-		CRCcalculate(outPacket, TRUE);
+		if (COMdevice == INTERFACE_BOARD) CRCcalculate(outPacket, TRUE);
+
 		if (outPacket == NULL) return (FALSE);
-		
+
 		DisplaySerialComData(ptrDialog, DATAIN, "");
 
-		if (!WriteSerialPort(0, outPacket)) {
+		if (!WriteSerialPort(ptrPortHandle, outPacket)) {
 			DisplaySerialComData(ptrDialog, DATAOUT, "COM PORT ERROR");
 			return (FALSE);
 		}
 
-		if (!ReadSerialPort(0, inPacket)) {
+		if (!expectReply) return TRUE;
+
+		if (inPacket == NULL) {
+			char temp[BUFFERSIZE];
+			inPacket = temp;
+		}
+
+		if (!ReadSerialPort(ptrPortHandle, inPacket)) {
 			DisplaySerialComData(ptrDialog, DATAIN, "COM PORT ERROR");
 			return (FALSE);
 		}
 
-		if (!CRCcheck(inPacket)) {
-			DisplaySerialComData(ptrDialog, DATAIN, "CRC ERROR");
-			return (FALSE);
+		if (COMdevice == INTERFACE_BOARD) {
+			if (!CRCcheck(inPacket)) {
+				DisplaySerialComData(ptrDialog, DATAIN, "CRC ERROR");
+				return (FALSE);
+			}			
 		}
-		else DisplaySerialComData(ptrDialog, DATAIN, inPacket);
-
+		DisplaySerialComData(ptrDialog, DATAIN, inPacket);
 		return (TRUE);		
 	}
 

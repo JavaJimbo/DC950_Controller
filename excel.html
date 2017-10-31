@@ -1,0 +1,282 @@
+<!--------------------------------------------------------------------------->  
+<!--                           INTRODUCTION                                
+
+ The Code Project article submission template (HTML version)
+
+Using this template will help us post your article sooner. To use, just 
+follow the 3 easy steps below:
+ 
+     1. Fill in the article description details
+     2. Add links to your images and downloads
+     3. Include the main article text
+
+That's all there is to it! All formatting will be done by our submission
+scripts and style sheets. 
+
+-->  
+<!--------------------------------------------------------------------------->  
+<!--                        IGNORE THIS SECTION                            -->
+<html>
+<head>
+<title>The Code Project</title>
+<Style>
+BODY, P, TD { font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt }
+H2,H3,H4,H5 { color: #ff9900; font-weight: bold; }
+H2 { font-size: 13pt; }
+H3 { font-size: 12pt; }
+H4 { font-size: 10pt; color: black; }
+PRE { BACKGROUND-COLOR: #FBEDBB; FONT-FAMILY: "Courier New", Courier, mono; WHITE-SPACE: pre; }
+CODE { COLOR: #990000; FONT-FAMILY: "Courier New", Courier, mono; }
+</style>
+<link rel="stylesheet" type=text/css href="http://www.codeproject.com/styles/global.css">
+</head>
+<body bgcolor="#FFFFFF" color=#000000>
+<!--------------------------------------------------------------------------->  
+
+
+<!-------------------------------     STEP 1      --------------------------->
+<!--  Fill in the details (CodeProject will reformat this section for you) -->
+
+<pre>
+Title:       Create Excel-files with a simple class
+Author:      Juergen Wagner
+Email:       wagnerjg1@freenet.de
+Environment: VC++ 
+Keywords:    MFC, XML, Excel
+Level:       Intermediate&quot;
+Description: An article on something-or-other
+Section      Miscellaneous
+SubSection   General
+</pre>
+
+<!-------------------------------     STEP 2      --------------------------->
+<!--  Include download and sample image information.                       --> 
+
+<ul class=download>
+<li><a href="Excel.zip">Download source - 4 Kb</a></li>
+</ul>
+
+
+
+<!-------------------------------     STEP 3      --------------------------->
+<!--  Add the article text. Please use simple formatting (<h2>, <p> etc)   --> 
+
+<h1>Creating XML-files to be opened in Excel</h1>
+
+<h2>Introduction</h2>
+
+<p>When I wrote my latest application, I had to find a way, to print data from a CListCtrl.
+Since I am not very familiar with printing in MFC, I thought about exporting the data
+to Excel and leave all the formating and printing to Excel.
+
+<p>So my first attempt was to create a CSV-file with all required data. It worked fine, but
+users complained, that they have to do the formating all by themselves. So I tried to find
+out, how to create XLS-files.
+
+<p>With Excel 2003 it is possible to import XML-files. So I created an XML-file and analyzed it.
+The result is a new class, that can help generating Excel-files from with your MFC-Application.
+
+
+<h2>How does it work</h2>
+
+<p>Excel-XML-files contain a number of predefined styles. Each cell, that is defined in its way 
+needs its own style. So when using different format-options, you may end with a large number
+of styles. These styles have to be defined in the beginning of your XML-file.
+Furthermore you have to define every column, that you use in your XML file.
+And you need to know exactly how many lines of data you will have in your XML-file.
+
+<p>So whenever you create an XML-file, a file in your temp-folder is created. Excel will be 
+opened with this XML-file and afterwards you may delete your XML-file again.
+For compatibilty reasons, I left the creation of CSV-files in my class, in case you do not 
+have Excel installed on your system, but wat to export your data.
+
+
+<h2>Steps</h2>
+
+<p>First step is to add the files "Excel.cpp" and "Excel.h" to your project. Include "Excel.h"
+in your source wherever you want to create XML-files.
+
+<p>To start the export, you have to declare a varaible of type CExcel. The constructor can also be
+used with a part of a filename. All temporary files will begin with this string. So you
+can create your own files in your temp-folder. Default for the beginning of your files is XLS.
+<pre>
+CExcel export("TST");
+</pre>
+<p>Next step is to add all the columns you want to have in your file:
+<pre>
+export.AddColumn(120.3);
+export.AddColumn();
+</pre>
+<p>Use AddCloumn() for every column you need. You may specify the width of this column. If you do 
+not specify a value, Excel uses a default.
+
+<p>Next step is a bit tricky. You have to define the styles you want to use.<br>
+Every cell of data may have its own style, fontsize and datatype.<br>
+AddStyle() returns a unique identifier for every style you create:<br>
+<pre>
+int bold,center,bolddate,large;
+
+bold=export.AddStyle(XLS_BOLD);
+center=export.AddStyle(XLS_HCENTER|XLS_VCENTER);
+bolddate=export.AddStyle(XLS_BOLD|XLS_DATE);
+large=export.AddStyle(XLS_NOSTYLE,"16");
+</pre>
+<p>Above example creates a style (stored in "bold") which simply sets the font to bold. 
+Another style centers the value horizontaly and verticaly.
+<code>bolddate</code> will hold the idetifier for a style that displays a bold date and large does not
+alter the formating, but sets the fontsize to 16 pt.
+
+<p>You can use a combination of these flags:
+<pre>
+XLS_NOSTYLE 		No change in style
+
+XLS_HCENTER 		horizontaly centered
+XLS_HLEFT 		left aligned
+XLS_HRIGHT 		right aligned
+XLS_VTOP 		aligned at the top of the cell
+XLS_VCENTER 		vertically centered
+XLS_VBOTTOM 		aligned at the bottom of the cell
+XLS_WRAP 		text is wrapped to fit in the cell
+XLS_BORDER 		there is a single line border around the cell
+
+XLS_BOLD 		the font is bold
+XLS_LINE 		the font is underlined with a single line
+XLS_ITALICS 		the font is italics
+
+XLS_DATE		the cell contains a date
+XLS_TIME 		the cell contains a time
+XLS_CURRENCY		the cell contains a currency
+</pre>
+<p>Each combination of these flags result in a new style. CExcel stores the styles in a CStringArray,
+so there is no limitation of styles.
+
+<p>After defining all styles and adding all columns, you can start to create your XML-file
+with 
+<pre>
+export.Open(12,"Test");
+</pre>
+<p>Excel needs to know the number of lines before the lines are written, so you have to specify
+this number now. You also have to give a name for the Excel-worksheet.<br>
+If you use Open() without parameters, no XML-file will be created, but a CSV-file will be created.
+
+<p>Open() writes a lot of XML-header stuff in your file, defines all the styles and columns you
+added.
+
+<p>After opening the file, you can add rows of data. Each row must beginn with NewRow().
+<pre>
+export.NewRow(bold,25.3);
+</pre>
+<p>This beginns a new row. The row is in the bold-style, you created and has a height of 25.3.<br>
+If you do not specify any vlaues, Excel-defaults are used.<br>
+If you just want to set the new height and don't want to use a style, just
+<pre>
+export.NewRow(XLS_NOSTYLE,40.2);
+</pre>
+<p>After a row is started, you can add values to every cell in your row:
+<pre>
+export.SetCell("This is for strings");
+export.SetCell(129.3); // for float
+export.SetCell(2); // for integer
+</pre>
+<p>You can also specify a style:
+<pre>
+export.SetCell("this will be bold",bold);
+export.SetCell(2,large); // a really big 2
+export.SetCell(23.33,currency); // as far as you have defined currency-style
+</pre>
+<p>You can also use a CTime-object in SetCell(). However, you have to specify a style defining
+the CTime as date or time:
+<pre>
+int aTime=export.AddStyle(XLS_TIME|HCENTER);
+CTime now;
+
+export.SetCell(now,aTime); // a time horizontally centered
+</pre>
+
+<p>When you have set all values for a cell, you have to end your row with EndRow()
+<pre>
+export.EndRow();
+</pre>
+<p>Now you can start your next row.
+
+<p>When you have finished with all data, you have to close your file:
+<pre>
+export.Close();
+</pre>
+<p>All XML-tags will be closed and the temporary file is saved.<br>
+Just 
+<pre>
+export.Run();
+</pre>
+<p>will open Excel with your XML-file. Or with your CSV-file, if you did not specify parameters
+when opening your file.
+
+<p>Use
+<pre>
+export.Delete();
+</pre>
+<p>to delete a CSV-file after showing. XML-files should not be deleted when Excel is still running,
+so use
+<pre>
+CExcel export;
+export.DeleteAll();
+</pre>
+<p>instead in your OnClose()-function.
+
+<h2>Complete Example</h2>
+
+<p>Here is a complete Example:
+
+<pre>
+void OnExport()
+{
+	CExcel export("MYTMP");			// Create Files starting with MYTMP
+	int x_bold,x_center,x_date,x_money;	// all the styles I want
+	CTime now=CTime::GetCurrentTime();	// this is now
+
+	export.AddColumn();			// first column	
+	export.AddColumn();	
+	export.AddColumn(123.3);		// a wide column
+
+	x_bold=export.AddStyle(XLS_BOLD,"16");	// a bold-Font, 16 pt
+	x_center=export.AddStyle(XLS_HCENTER|XLS_VCENTER|XLS_WRAP);	// Centered text
+	x_date=export.AddStyle(XLS_DATE);	// used to format a date
+	x_money=export.AddStyle(XLS_CURRENCY);	// used for currencies
+
+	export.Open(3,"Example");		// Open the file with 3 rows
+
+	export.NewRow(x_bold,23);		// a row of bold Text
+	export.SetCell("Date");			// some headlines
+	export.SetCell("Income");
+	export.SetCell("Why");
+	export.EndRow();			// End of first row
+	export.NewRow();			// an empty line
+	export.EndRow();
+	export.NewRow();			// next row
+	export.SetCell(now,x_date);		// the CTime formatted as date
+	export.SetCell(72637.23,x_money);	// a float value formatted as currency
+	export.SetCell("This is just long text, which wil be centered and wrapped around",x_center);
+	export.EndRow();
+	export.Close();				// closing the file
+	export.Run();				// starting Excel and display data
+}
+
+void OnClose()
+{
+	CExcel export("MYTMP");
+
+	export.DeleteAll();			// Delete all export-files
+
+	CDialog::OnClose();
+}
+</pre>
+
+
+<h2>History</h2>
+
+<p>March 7th, 2007 First release
+
+
+<!-------------------------------    That's it!   --------------------------->
+</body>
+</html>

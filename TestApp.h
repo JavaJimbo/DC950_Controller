@@ -6,20 +6,18 @@
 
 class TestApp : public CDialog
 {
-public:				
-	BOOL sendReceiveSerial(CSerialCtrlDemoDlg *ptrDialog, int targetDevice, char *outPacket, char *inPacket);	
-	void msDelay(int milliseconds);	
-	BOOL InitializeHP34401(CSerialCtrlDemoDlg *ptrDialog);
-	BOOL openTestSerialPort();
-	BOOL closeTestSerialPort();	
+public:					
+	BOOL TestApp::sendReceiveSerial (int COMdevice, CSerialCtrlDemoDlg *ptrDialog, char *outPacket, char *inPacket, BOOL useCRC);
+	void msDelay (int milliseconds);	
+	BOOL InitializeHP34401(CSerialCtrlDemoDlg *ptrDialog);	
+	BOOL openTestSerialPort(const char *ptrPortName, HANDLE *ptrPortHandle);
+	BOOL closeSerialPort(HANDLE ptrPortHandle);
+	void closeAllSerialPorts();
 	BOOL DisplayMessageBox(LPCTSTR strTopLine, LPCTSTR strBottomLine, int boxType);	
-	BOOL ReadSerialPort(int targetDevice, char *ptrPacket);
-	BOOL WriteSerialPort(int targetDevice, char *ptrPacket);
+	BOOL ReadSerialPort(HANDLE ptrPortHandle, char *ptrPacket);
+	BOOL WriteSerialPort(HANDLE ptrPortHandle, char *ptrPacket);
 	BOOL InitializeDisplayText();
 	UINT SystemStartUp(CSerialCtrlDemoDlg *ptrDialog);
-	BOOL flgMainPortOpen;
-	BOOL flgHPmeterInitialized;
-	BOOL flgIniFileOpen;				
 	void DisplayIntructions(int stepNumber, CSerialCtrlDemoDlg *ptrDialog);
 	void DisplayPassFailStatus(int stepNumber, CSerialCtrlDemoDlg *ptrDialog);
 	void DisplayStatusBarText(CSerialCtrlDemoDlg *ptrDialog, int panel, LPCTSTR strText);
@@ -33,6 +31,12 @@ public:
 	void disableBarcodeScan(CSerialCtrlDemoDlg *ptrDialog);
 	BOOL InitializeSystem(CSerialCtrlDemoDlg *ptrDialog);
 	TestStep testStep[TOTAL_STEPS];
+	CSerialCtrlDemoDlg *ptrDialog;
+	
+	HANDLE handleInterfaceBoard, handleHPmultiMeter, handleACpowerSupply;
+	const char *portNameInterfaceBoard = "COM8";
+	const char *portNameMultiMeter = "\\\\.\\COM17";
+	const char *portNameACpowerSupply = "\\\\.\\COM19";
 
 	TestApp(CWnd* pParent = NULL);	// standard constructor
 	~TestApp();

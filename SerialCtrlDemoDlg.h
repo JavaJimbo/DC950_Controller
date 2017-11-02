@@ -56,6 +56,9 @@ public:
 	CEdit   m_BarcodeEditBox;
 	CStatusBar m_StatusBar;
 	//CStatusBar m_StatusBarLe
+	UINT  stepNumber = 0;
+	UINT  subStepNumber = 0;
+	BOOL runFilterActuatorTest = FALSE;
 	
 	HANDLE m_timerHandle = NULL;
 	void timerHandler();

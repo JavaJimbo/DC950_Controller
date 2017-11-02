@@ -1,6 +1,6 @@
 /*	SerialCtrlDemoDlg.cpp : implementation file
 *
-*	9-13-17 JBS: $$$$ in OnBnClickedButtonWr() made two changes:
+*	9-13-17 JBS: in OnBnClickedButtonWr() made two changes:
 *	1) Append carriage return & linefeed to end of command for HP 34401a
 *	2) Clear receive listbox before sending command
 *	10-15-17: Added pop up message boxes for error handling
@@ -12,6 +12,7 @@
 *	10-30-17: Model number select radio buttons were added. 
 *			  Also changes made for barcode scanner to prevent CR exiting program.
 *   10-31-17: Converted RS232 communication to three COM ports.
+*	11-1-17: All tests up and running except spectrometer. Spreadsheet not done yet.
 */
 
 
@@ -34,7 +35,8 @@ CFont BigFont, SmallFont, MidFont;
 
 TestApp MyTestApp;		
 
-UINT  stepNumber = 0;
+//UINT  stepNumber = 0;
+//UINT  subStepNumber = 0;
 // BOOL previousButtonPushed = FALSE;
 
 
@@ -129,6 +131,7 @@ BOOL CSerialCtrlDemoDlg::OnInitDialog()
 	MyTestApp.InitializeDisplayText();	
 	// previousButtonPushed = FALSE;
 	stepNumber = 0;	
+	subStepNumber = 0;
 	CreateStatusBars();
 	MyTestApp.DisplayStepNumber(this, stepNumber);		
 	m_static_optStandard.SetCheck(TRUE);
@@ -156,13 +159,13 @@ void CSerialCtrlDemoDlg::OnBtnClickedPrevious()
 		if (stepNumber == REMOTE_TEST) break;
 		
 		stepType = MyTestApp.testStep[stepNumber].stepType;
-	} while (stepType == AUTO || stepType == NOT_USED);
+	} while (stepType == AUTO);
 
 	if (stepNumber == 1) MyTestApp.resetDisplays(this); //  enableBarcodeScan(this);
 	
 	MyTestApp.DisplayStepNumber(this, stepNumber);
 	MyTestApp.DisplayIntructions(stepNumber, this);
-	MyTestApp.DisplayPassFailStatus(stepNumber, this);
+	MyTestApp.DisplayPassFailStatus(stepNumber, 0, this);
 }
 
 
@@ -293,49 +296,53 @@ void CSerialCtrlDemoDlg::Testhandler()
 {
 		// Execute test step and display result:
 		int testResult = MyTestApp.Execute(stepNumber, this);
-		MyTestApp.DisplayPassFailStatus(stepNumber, this);
-		if (testResult == NOT_DONE_YET) return;
+		MyTestApp.DisplayPassFailStatus(stepNumber, subStepNumber, this);
 
-		int stepType = MyTestApp.testStep[stepNumber].stepType;
+		if (testResult == PASS || testResult == FAIL) {
+			subStepNumber = 0;
 
-		// Step #0 checks RS232 communication.
-		// If system fails this step,
-		// the interface board power probably isn't on.
-		// For this case, quit routine here:
-		if (stepNumber == 0 && testResult != PASS) return;		
+			int stepType = MyTestApp.testStep[stepNumber].stepType;
 
-		// Otherwise if a unit has completed full test sequence,
-		// set step back to 1 for testing next unit:
-		else if (stepNumber == FINAL_PASS || stepNumber == FINAL_FAIL) 
-			stepNumber = 1;
+			// Step #0 checks RS232 communication.
+			// If system fails this step,
+			// the interface board power probably isn't on.
+			// For this case, quit routine here:
+			if (stepNumber == 0 && testResult != PASS) return;
 
-		// If unit passedd, then advance to next step.
-		// Skip over any step which is NOT USED for this model:
-		else if (testResult == PASS) {
-			do {
-				stepNumber++;
-			} while (MyTestApp.testStep[stepNumber].stepType == NOT_USED);
-		}
-		// Otherwise if unit failed, stop timer (it it's running)
-		// then query user to retry or quit testing unit:
-		else {
-			StopTimer();
-			if (stepNumber == 1) MyTestApp.DisplayMessageBox("BARCODE ERROR", "Please scan label again", 1);
-			else {
-				BOOL retry = MyTestApp.DisplayMessageBox("UNIT FAILED TEST", "Retry test or Cancel?", 2);
-				// If user doesn't wish to retry any failed test, jump to FAIL TEST:
-				if (!retry) stepNumber = FINAL_FAIL;
+			// Otherwise if a unit has completed full test sequence,
+			// set step back to 1 for testing next unit:
+			else if (stepNumber == FINAL_PASS || stepNumber == FINAL_FAIL)
+				stepNumber = 1;
+
+			// If unit passedd, then advance to next step.
+			// If unit isn't the filter actuator model, 
+			// then skip the ACTUATOR and SPECTROMETER tests and go to FINAL PASS:
+			else if (testResult == PASS) {
+				stepNumber++; 
+				if (runFilterActuatorTest == FALSE && stepNumber == ACTUATOR_TEST) stepNumber = FINAL_PASS;
 			}
+			// Otherwise if unit failed, stop timer (it it's running)
+			// then query user to retry or quit testing unit:
+			else {
+				StopTimer();
+				if (stepNumber == 1) MyTestApp.DisplayMessageBox("BARCODE ERROR", "Please scan label again", 1);
+				else {
+					BOOL retry = MyTestApp.DisplayMessageBox("UNIT FAILED TEST", "Retry test or Cancel?", 2);
+					// If user doesn't wish to retry any failed test, jump to FAIL TEST:
+					if (!retry) stepNumber = FINAL_FAIL;
+				}
+			}
+			// If this is the start of an automated sequence
+			// or if sequence is already in progress, start timer.
+			// If next step is manual, make sure timer is off:
+			if (MyTestApp.testStep[stepNumber].stepType == AUTO) StartTimer();
+			else StopTimer();
 		}
+
 		// Now display next step:
 		MyTestApp.DisplayIntructions(stepNumber, this);
-		MyTestApp.DisplayStepNumber(this, stepNumber);
-		// If this is the start of an automated sequence
-		// or if sequence is already in progress, start timer.
-		// If next step is manual, make sure timer is off:
-		if (MyTestApp.testStep[stepNumber].stepType == AUTO) StartTimer();		
-		else StopTimer();
-		
+		MyTestApp.DisplayStepNumber(this, stepNumber);		
+
 		if (stepNumber == 1) MyTestApp.resetDisplays(this);// MyTestApp.enableBarcodeScan(this);
 		else MyTestApp.disableBarcodeScan(this);
 
@@ -353,10 +360,15 @@ void CSerialCtrlDemoDlg::Testhandler()
 
 
 void CSerialCtrlDemoDlg::OnBtnClickedTest() {
-	char strMeasure[BUFFERSIZE] = ":MEAS?\r\n";	
-			
-	if (!MyTestApp.sendReceiveSerial (HP_METER, this, strMeasure, NULL, TRUE))
-		MyTestApp.DisplayMessageBox("Inteface board COM error", "Check RS232 connections and POWER ON LED", 1);			
+	static int voltage = 10;
+	//char strMeasure[BUFFERSIZE] = ":MEAS?\r\n";				
+	//if (!MyTestApp.sendReceiveSerial (HP_METER, this, strMeasure, NULL, TRUE))
+	//	MyTestApp.DisplayMessageBox("HP COM error", "Check RS232 connections and POWER button", 1);			
+	//voltage++;
+	//char strCommand[BUFFERSIZE];
+	//sprintf_s(strCommand, BUFFERSIZE, "VOLT %d\r\n", voltage);
+	//MyTestApp.sendReceiveSerial(AC_POWER_SUPPLY, this, strCommand, NULL, FALSE);
+	MyTestApp.RunPowerSupplyTest(this);
 }
 
 

@@ -1,6 +1,7 @@
 #pragma once
 // #include "Definitions.h"
 
+#define MAX_PWM 6215
 #define MULTIMETER 1
 #define BUFFERSIZE 128
 #define FONTHEIGHT 26
@@ -11,12 +12,22 @@
 #define TOTAL_STEPS 14
 #define FINAL_FAIL TOTAL_STEPS-1
 #define FINAL_PASS (TOTAL_STEPS-2)
+#define ACTUATOR_TEST (TOTAL_STEPS-5)
 #define STARTUP 0
 #define LEFTPANEL 0
 #define RIGHTPANEL 1
 
 #define DATAIN 0
 #define DATAOUT 1
+
+#define MAX_SUPPLY_VOLTAGE_ERROR 10
+#define MAX_LAMP_x10_VOLTAGE_ERROR 10
+
+enum MULTIMETER_INPUTS {
+	LAMP = 0,
+	VREF,
+	CONTROL_VOLTAGE
+};
 
 enum COM_PORTS {
 	INTERFACE_BOARD = 0,
@@ -44,9 +55,8 @@ enum STATUS {
 	FAIL
 };
 
-enum STEP_TYPE {	
-	NOT_USED = 0,	
-	MANUAL,
+enum STEP_TYPE {			
+	MANUAL = 0,
 	AUTO
 };
 

@@ -1,6 +1,6 @@
 /* SerialCtrlDemo.cpp : Defines the class behaviors for the application.
  *
- * $$$$ Modified to work with HP 34401A multimeter
+ *  Modified to work with HP 34401A multimeter
  *  For commands see HP 344A Multimeter User's Guide 
  *  Part Number 34401-90004
  *
